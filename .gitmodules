@@ -1,0 +1,3 @@
+[submodule "pandaswap-dex"]
+	path = pandaswap-dex
+	url = git@github.com:HungryPandaHome/pandaswap-dex.git
