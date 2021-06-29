@@ -61,22 +61,30 @@ contract HungryPanda is Ownable, IERC20 {
 
     mapping(address => mapping(address => uint256)) private _allowances;
 
-    uint256 private _totalSupply = 10 * 10**14 * 10**9;
-    uint8 private _decimals = 9;
+    uint8   private constant _decimals = 18;
+    uint256 private constant DECIMALFACTOR = 10 ** _decimals;
+    uint256 private _totalSupply = 10 * 10**14 * DECIMALFACTOR;
 
     string private _name = "HungryPanda";
     string private _symbol = "HNP";
+    
 
-    uint256 public maxTxAmount = 10 * 10**13 * 10**9; // 1%
-    uint256 public constant minimalSupply = 3 * 10**14 * 10**9; // 70% can be burnt
-    uint256 public constant numTokensSellToAddLiquidity = 10 * 10**11 * 10**9; // 0.1%
+    uint256 public constant maxTxAmount = 10 * 10**13 * DECIMALFACTOR; // 1%
+    uint256 public constant minimalSupply = 3 * 10**14 * DECIMALFACTOR; // 70% can be burnt
+    uint256 public constant numTokensSellToAddLiquidity = 10 * 10**11 * DECIMALFACTOR; // 0.1%
 
-    uint256 public constant taxFee = 5;
-    uint256 public constant burnFee = 1;
-    uint256 public constant liquidityFee = 3;
-    uint256 public constant supportFee = 1;
+    uint256 public taxFee = 5;
+    uint256 public burnFee = 1;
+    uint256 public liquidityFee = 3;
+    uint256 public supportFee = 1;
+    uint256 public taxFeeOrigin = taxFee;
+    uint256 public burnFeeOrigin = burnFee;
+    uint256 public liquidityFeeOrigin = liquidityFee;
+    uint256 public supportFeeOrigin = supportFee;
+    
     uint256 public totalBurned = 0;
     uint256 public rewardBalance = 0;
+    uint256 public rewardTotal = 0;
     uint256 public totalSupported = 0;
     address public immutable supportWallet;
 
@@ -104,9 +112,6 @@ contract HungryPanda is Ownable, IERC20 {
         _;
         inSwapAndLiquify = false;
     }
-
-    address public lastFrom;
-    address public lastTo;
     constructor(address _router, address _wallet) Ownable() {
         bornAtBlock = block.number;
 
@@ -120,7 +125,6 @@ contract HungryPanda is Ownable, IERC20 {
         _WETH = _uniswapV2Router.WETH();
         uniswapV2Pair = _uniswapV2Pair;
         // transfer ownership to contract
-        excludedFromRewards[address(this)] = true;
         excludedFromRewards[address(_uniswapV2Router)] = true;
         excludedFromRewards[_uniswapV2Pair] = true;
         excludedFromFee[address(this)] = true;
@@ -129,12 +133,9 @@ contract HungryPanda is Ownable, IERC20 {
         excludedFromFee[_uniswapV2Pair] = true;
 
         supportWallet = _wallet;
-        
-        _balances[address(this)] = _totalSupply - 10 ** 6 * 10 ** 9;
-        emit Transfer(address(0), address(this), _totalSupply - 10 ** 6 * 10 ** 9);
     
-        _balances[_msgSender()] = 10 ** 6 * 10 ** 9;
-        emit Transfer(address(0), _msgSender(), 10 ** 6 * 10 ** 9);
+        _balances[_msgSender()] = _totalSupply;
+        emit Transfer(address(0), _msgSender(), _totalSupply);
         
     }
 
@@ -153,13 +154,19 @@ contract HungryPanda is Ownable, IERC20 {
     }
 
     // daily triggered job to share rewards ...
-    function shareRewards(uint256 _toBeRewarded) private {
-        uint256 rRate = (_totalSupply / _toBeRewarded);
+    function shareRewards(uint256 _fee) private {
+        rewardTotal += _fee;
+        uint256 shared = 0;
+        uint256 integer = _totalSupply / DECIMALFACTOR;
         for (uint256 index = 0; index < holdersRewarded.length; index++) {
             address holder = holdersRewarded[index];
-            uint256 hRate = (_totalSupply / _balances[holder]);
-            uint256 denominator = rRate / hRate;
-            _balances[holder] += (_toBeRewarded / denominator);
+            uint256 balance = _balances[holder] / DECIMALFACTOR;
+            if(balance == 0){
+                continue;
+            }
+            uint256 reward = _fee / (integer / balance);
+            _balances[holder] += reward;
+            shared  += reward;
         }
     }
 
@@ -186,7 +193,6 @@ contract HungryPanda is Ownable, IERC20 {
         returns (uint256[] memory)
     {
         address[] memory path = makePairPath();
-        // from 0.1 WBNB to 1.0 WBNB ...
         return uniswapV2Router.getAmountsOut(_wethAmount, path);
     }
 
@@ -197,6 +203,14 @@ contract HungryPanda is Ownable, IERC20 {
         }
         return maxTxAmount;
     }
+    
+    function calculateExtraFee() public view returns (uint256) {
+        uint256 periods = blockPeriods(blocksPeriodSize);
+        if (periods < 10) {
+            return liquidityFee * (10 - periods) / 2; // x * 4, x * 3, x * 2 ... x * 0;
+        }
+        return 0;
+    }
 
     function name() public view returns (string memory) {
         return _name;
@@ -205,9 +219,11 @@ contract HungryPanda is Ownable, IERC20 {
     function symbol() public view returns (string memory) {
         return _symbol;
     }
+    
     function decimals() public view returns (uint8) {
         return _decimals;
     }
+    
     function totalSupply() public view override returns (uint256) {
         return _totalSupply;
     }
@@ -319,12 +335,9 @@ contract HungryPanda is Ownable, IERC20 {
     }
 
     function swapTokensForEth(uint256 tokenAmount) private {
-        // generate the uniswap pair path of token -> weth
         address[] memory path = makePairPath();
 
         _approve(address(this), address(uniswapV2Router), tokenAmount);
-
-        // make the swap
         uniswapV2Router.swapExactTokensForETHSupportingFeeOnTransferTokens(
             tokenAmount,
             0, // accept any amount of ETH
@@ -344,7 +357,7 @@ contract HungryPanda is Ownable, IERC20 {
             tokenAmount,
             0, // slippage is unavoidable
             0, // slippage is unavoidable
-            address(this),
+            owner(),
             block.timestamp
         );
     }
@@ -355,27 +368,25 @@ contract HungryPanda is Ownable, IERC20 {
         address _recipient,
         uint256 _amount
     ) internal virtual {
-        lastFrom = _sender;
-        lastTo = _recipient;
         require(_sender != address(0), "ERC20: transfer from the zero address");
         require(
             _recipient != address(0),
             "ERC20: transfer to the zero address"
         );
-
+        require(_amount > 0, "ERC20: amount must be greater than zero");
         uint256 senderBalance = _balances[_sender];
         require(
             senderBalance >= _amount,
             "ERC20: transfer amount exceeds balance"
         );
-        uint256 _maxTxAmount = calculateMaxTxAmount();
-        require(
-            _maxTxAmount >= _amount,
-            "ERC20: transfer amount exceeds maximum"
-        );
-                
-                
-        uint256 amountToReceive = _amount;
+        if (_sender != owner() && _recipient != owner()){
+            uint256 _maxTxAmount = calculateMaxTxAmount();
+            require(
+                _amount <= _maxTxAmount,
+                "ERC20: transfer amount exceeds maximum"
+            );
+        }
+    
         uint256 contractTokenBalance = balanceOf(address(this));
         if (contractTokenBalance >= maxTxAmount) { // should we ?
             contractTokenBalance = maxTxAmount;
@@ -389,38 +400,26 @@ contract HungryPanda is Ownable, IERC20 {
             swapAndLiquifyEnabled
         ) {
             contractTokenBalance = numTokensSellToAddLiquidity;
-            //add liquidity
             swapAndLiquify(contractTokenBalance);
         }
-
         bool takeFee = true;
         if(excludedFromFee[_sender] && excludedFromFee[_recipient]){
             takeFee = false;
         }
-        if (takeFee) {
-            // TODO: make sell fee higher then buy ?!
-            _transferWithFee(_sender, _recipient, _amount);
-        }else{
-            _balances[_sender] -= _amount;
-            _balances[_recipient] += _amount;
-            emit Transfer(_sender, _recipient, _amount);   
-        }
+        if (!takeFee) disableFee();
+        _transferStandard(_sender, _recipient, _amount);
+        if (!takeFee) enableFee();
     }
     
-    // _transferWithFee transfers tokens applying fees
-    function _transferWithFee(
-        address _sender,
-        address _recipient,
-        uint256 _amount) private {
-        if(excludedFromFee[_sender] && !excludedFromFee[_recipient]){
-            _transferWhenBuy(_sender,_recipient,_amount);
-        } else if(!excludedFromFee[_sender] && excludedFromFee[_recipient]){
-            // potentially buy ...
-            _transferWhenSell(_sender,_recipient,_amount);
-        } else {
-            // transfer between holders
-            _transferStandard(_sender,_recipient,_amount);
-        }
+    function getValues(uint256 _amount) private view returns (uint256,uint256,uint256,uint256,uint256) {
+            uint256 amountToBurn = (_amount / feeGranularity) * burnFee;
+            uint256 amountToSupport = (_amount / feeGranularity) * supportFee;
+            uint256 amountToCharge = (_amount / feeGranularity) * taxFee;
+            uint256 amountToAddLiquidity = (_amount / feeGranularity) *
+                liquidityFee;
+            uint256 amountToReceive  = _amount - amountToBurn - 
+                amountToSupport - amountToCharge - amountToAddLiquidity;        
+            return (amountToBurn, amountToSupport, amountToCharge, amountToAddLiquidity, amountToReceive);
     }
     
     // _transferStandard charges sender and recepient. Any tokens movement are charged to motivate holders hold tokens
@@ -428,82 +427,35 @@ contract HungryPanda is Ownable, IERC20 {
         address _sender,
         address _recipient,
         uint256 _amount) private {
-            uint256 amountToBurn = (_amount / feeGranularity) * burnFee;
-            uint256 amountToSupport = (_amount / feeGranularity) * supportFee;
-            uint256 amountToCharge = (_amount / feeGranularity) * taxFee;
-            uint256 amountToAddLiquidity = (_amount / feeGranularity) *
-                liquidityFee;
-            uint256 amountToReceive  = _amount - amountToBurn - 
-                amountToSupport - amountToCharge - amountToAddLiquidity;
-            // collect fees
-            rewardBalance += amountToCharge;
-            shareRewards(amountToCharge);
-            totalBurned += amountToBurn;
-            burn(amountToBurn);
-            totalSupported += amountToSupport;
-            takeSupport(_sender, amountToSupport);
-            
-            _balances[_sender] -= _amount;
-            _balances[_recipient] += amountToReceive;
-            
-            if (!excludedFromRewards[_recipient]) {
-                holdersRewarded.push(_recipient);
-            }
-            emit Transfer(_sender, _recipient, amountToReceive);
-        }
+            (uint256 amountToBurn,
+                uint256 amountToSupport,
+                uint256 amountToCharge,
+                uint256 amountToAddLiquidity,
+                uint256 amountToReceive) = getValues(_amount);
 
-    // _transferWhenSell charges only _recepient
-    function _transferWhenSell(
-        address _sender,
-        address _recipient,
-        uint256 _amount) private {
-            uint256 amountToBurn = (_amount / feeGranularity) * burnFee;
-            uint256 amountToSupport = (_amount / feeGranularity) * supportFee;
-            uint256 amountToCharge = (_amount / feeGranularity) * taxFee;
-            uint256 amountToAddLiquidity = (_amount / feeGranularity) *
-                liquidityFee;
-            uint256 amountToReceive  = _amount - amountToBurn - 
-                amountToSupport - amountToCharge - amountToAddLiquidity;
+            uint256 extraFee = 0;
+            if (_recipient != address(this) &&
+                    !excludedFromFee[_sender] &&
+                    excludedFromFee[_recipient]) {
+                extraFee = calculateExtraFee();
+            }
+            uint256 toExtraFee = (_amount / feeGranularity) * extraFee;
+            amountToReceive -= toExtraFee;
             // collect fees
-            rewardBalance += amountToCharge;
             shareRewards(amountToCharge);
             totalBurned += amountToBurn;
             burn(amountToBurn);
             totalSupported += amountToSupport;
             takeSupport(_sender, amountToSupport);
             
-            // TODO:_balances[_sender] -= _amount; 
-            _balances[_recipient] += amountToReceive;
-            emit Transfer(_sender, _recipient, amountToReceive);
-        }
-        
-    // _transferWhenBuy charges only _sender
-    function _transferWhenBuy(
-        address _sender,
-        address _recipient,
-        uint256 _amount) private {
-            uint256 amountToBurn = (_amount / feeGranularity) * burnFee;
-            uint256 amountToSupport = (_amount / feeGranularity) * supportFee;
-            uint256 amountToCharge = (_amount / feeGranularity) * taxFee;
-            uint256 amountToAddLiquidity = (_amount / feeGranularity) *
-                liquidityFee;
-            uint256 amountToReceive  = _amount - amountToBurn - 
-                amountToSupport - amountToCharge - amountToAddLiquidity;
-            // collect fees
-            rewardBalance += amountToCharge;
-            shareRewards(amountToCharge);
-            totalBurned += amountToBurn;
-            burn(amountToBurn);
-            totalSupported += amountToSupport;
-            takeSupport(_sender, amountToSupport);
-            
+            _balances[address(this)] += amountToAddLiquidity;
             _balances[_sender] -= _amount;
             _balances[_recipient] += amountToReceive;
             if (!excludedFromRewards[_recipient]) {
                 holdersRewarded.push(_recipient);
             }
             emit Transfer(_sender, _recipient, amountToReceive);
-        }
+    }
     
 
     function _approve(
@@ -516,5 +468,23 @@ contract HungryPanda is Ownable, IERC20 {
 
         _allowances[_owner][_spender] = _amount;
         emit Approval(_owner, _spender, _amount);
+    }
+    
+    function disableFee() private {
+        taxFeeOrigin = taxFee;
+        burnFeeOrigin = burnFee;
+        liquidityFeeOrigin = liquidityFee;
+        supportFeeOrigin = supportFeeOrigin;
+        taxFee = 0;
+        burnFee = 0;
+        liquidityFee = 0;
+        supportFee = 0;
+    }
+    
+    function enableFee() private {
+        taxFee = taxFeeOrigin;
+        burnFee = burnFeeOrigin;
+        liquidityFee = liquidityFeeOrigin;
+        supportFee = supportFeeOrigin;
     }
 }
