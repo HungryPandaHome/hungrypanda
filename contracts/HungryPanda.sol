@@ -373,13 +373,25 @@ contract HungryPanda is Ownable, IERC20 {
             _maxTxAmount >= _amount,
             "ERC20: transfer amount exceeds maximum"
         );
-        // update balance before other operations
-        _balances[_sender] = senderBalance - _amount;
+                
+                
         uint256 amountToReceive = _amount;
-        // if _sender is excluded from fee (selling tokens), charge _recipient
-        // if _recipient is excludedFromFee (buying tokens), charge _sender
-        // if both are excluded don't charge
-        // if any excluded charge both
+        uint256 contractTokenBalance = balanceOf(address(this));
+        if (contractTokenBalance >= maxTxAmount) { // should we ?
+            contractTokenBalance = maxTxAmount;
+        }
+        bool overMinTokenBalance = contractTokenBalance >=
+                numTokensSellToAddLiquidity;
+        if (
+            overMinTokenBalance &&
+            !inSwapAndLiquify &&
+            _sender != uniswapV2Pair &&
+            swapAndLiquifyEnabled
+        ) {
+            contractTokenBalance = numTokensSellToAddLiquidity;
+            //add liquidity
+            swapAndLiquify(contractTokenBalance);
+        }
 
         bool takeFee = true;
         if(excludedFromFee[_sender] && excludedFromFee[_recipient]){
@@ -387,53 +399,12 @@ contract HungryPanda is Ownable, IERC20 {
         }
         if (takeFee) {
             // TODO: make sell fee higher then buy ?!
-            uint256 amountToBurn = (_amount / feeGranularity) * burnFee;
-            uint256 amountToSupport = (_amount / feeGranularity) * supportFee;
-            uint256 amountToCharge = (_amount / feeGranularity) * taxFee;
-            uint256 amountToAddLiquidity = (_amount / feeGranularity) *
-                liquidityFee;
-
-            // is the token balance of this contract address over the min number of
-            // tokens that we need to initiate a swap + liquidity lock?
-            // also, don't get caught in a circular liquidity event.
-            // also, don't swap & liquify if sender is uniswap pair.
-            uint256 contractTokenBalance = balanceOf(address(this));
-            // if (contractTokenBalance >= maxTxAmount) { // should we ?
-            //     contractTokenBalance = maxTxAmount;
-            // }
-
-            bool overMinTokenBalance = contractTokenBalance >=
-                numTokensSellToAddLiquidity;
-            if (
-                overMinTokenBalance &&
-                !inSwapAndLiquify &&
-                _sender != uniswapV2Pair &&
-                swapAndLiquifyEnabled
-            ) {
-                contractTokenBalance = numTokensSellToAddLiquidity;
-                //add liquidity
-                swapAndLiquify(contractTokenBalance);
-            }
-            // substract fees ...
-            amountToReceive =
-                amountToReceive -
-                amountToBurn -
-                amountToCharge -
-                amountToAddLiquidity -
-                amountToSupport;
-            // collect fees
-            rewardBalance += amountToCharge;
-            shareRewards(amountToCharge);
-            totalBurned += amountToBurn;
-            burn(amountToBurn);
-            totalSupported += amountToSupport;
-            takeSupport(_sender, amountToSupport);
+            _transferWithFee(_sender, _recipient, _amount);
+        }else{
+            _balances[_sender] -= _amount;
+            _balances[_recipient] += _amount;
+            emit Transfer(_sender, _recipient, _amount);   
         }
-        _balances[_recipient] += amountToReceive;
-        if (!excludedFromRewards[_recipient]) {
-            holdersRewarded.push(_recipient);
-        }
-        emit Transfer(_sender, _recipient, amountToReceive);
     }
     
     // _transferWithFee transfers tokens applying fees
@@ -442,11 +413,10 @@ contract HungryPanda is Ownable, IERC20 {
         address _recipient,
         uint256 _amount) private {
         if(excludedFromFee[_sender] && !excludedFromFee[_recipient]){
-            // potentially sell ...        
-            _transferWhenSell(_sender,_recipient,_amount);
+            _transferWhenBuy(_sender,_recipient,_amount);
         } else if(!excludedFromFee[_sender] && excludedFromFee[_recipient]){
             // potentially buy ...
-            _transferWhenBuy(_sender,_recipient,_amount);
+            _transferWhenSell(_sender,_recipient,_amount);
         } else {
             // transfer between holders
             _transferStandard(_sender,_recipient,_amount);
@@ -457,19 +427,83 @@ contract HungryPanda is Ownable, IERC20 {
     function _transferStandard(
         address _sender,
         address _recipient,
-        uint256 _amount) private {}
+        uint256 _amount) private {
+            uint256 amountToBurn = (_amount / feeGranularity) * burnFee;
+            uint256 amountToSupport = (_amount / feeGranularity) * supportFee;
+            uint256 amountToCharge = (_amount / feeGranularity) * taxFee;
+            uint256 amountToAddLiquidity = (_amount / feeGranularity) *
+                liquidityFee;
+            uint256 amountToReceive  = _amount - amountToBurn - 
+                amountToSupport - amountToCharge - amountToAddLiquidity;
+            // collect fees
+            rewardBalance += amountToCharge;
+            shareRewards(amountToCharge);
+            totalBurned += amountToBurn;
+            burn(amountToBurn);
+            totalSupported += amountToSupport;
+            takeSupport(_sender, amountToSupport);
+            
+            _balances[_sender] -= _amount;
+            _balances[_recipient] += amountToReceive;
+            
+            if (!excludedFromRewards[_recipient]) {
+                holdersRewarded.push(_recipient);
+            }
+            emit Transfer(_sender, _recipient, amountToReceive);
+        }
 
     // _transferWhenSell charges only _recepient
     function _transferWhenSell(
         address _sender,
         address _recipient,
-        uint256 _amount) private {}
+        uint256 _amount) private {
+            uint256 amountToBurn = (_amount / feeGranularity) * burnFee;
+            uint256 amountToSupport = (_amount / feeGranularity) * supportFee;
+            uint256 amountToCharge = (_amount / feeGranularity) * taxFee;
+            uint256 amountToAddLiquidity = (_amount / feeGranularity) *
+                liquidityFee;
+            uint256 amountToReceive  = _amount - amountToBurn - 
+                amountToSupport - amountToCharge - amountToAddLiquidity;
+            // collect fees
+            rewardBalance += amountToCharge;
+            shareRewards(amountToCharge);
+            totalBurned += amountToBurn;
+            burn(amountToBurn);
+            totalSupported += amountToSupport;
+            takeSupport(_sender, amountToSupport);
+            
+            // TODO:_balances[_sender] -= _amount; 
+            _balances[_recipient] += amountToReceive;
+            emit Transfer(_sender, _recipient, amountToReceive);
+        }
         
     // _transferWhenBuy charges only _sender
     function _transferWhenBuy(
         address _sender,
         address _recipient,
-        uint256 _amount) private {}
+        uint256 _amount) private {
+            uint256 amountToBurn = (_amount / feeGranularity) * burnFee;
+            uint256 amountToSupport = (_amount / feeGranularity) * supportFee;
+            uint256 amountToCharge = (_amount / feeGranularity) * taxFee;
+            uint256 amountToAddLiquidity = (_amount / feeGranularity) *
+                liquidityFee;
+            uint256 amountToReceive  = _amount - amountToBurn - 
+                amountToSupport - amountToCharge - amountToAddLiquidity;
+            // collect fees
+            rewardBalance += amountToCharge;
+            shareRewards(amountToCharge);
+            totalBurned += amountToBurn;
+            burn(amountToBurn);
+            totalSupported += amountToSupport;
+            takeSupport(_sender, amountToSupport);
+            
+            _balances[_sender] -= _amount;
+            _balances[_recipient] += amountToReceive;
+            if (!excludedFromRewards[_recipient]) {
+                holdersRewarded.push(_recipient);
+            }
+            emit Transfer(_sender, _recipient, amountToReceive);
+        }
     
 
     function _approve(

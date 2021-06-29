@@ -51,7 +51,7 @@
 			"bytecodeHash": "ipfs"
 		},
 		"optimizer": {
-			"enabled": true,
+			"enabled": false,
 			"runs": 200
 		},
 		"remappings": []
@@ -82,11 +82,11 @@
 			]
 		},
 		"contracts/HungryPanda.sol": {
-			"keccak256": "0xdccadfb9a255a0396ded764216dd1972ea91eb70f7baf2fea98abb4576303da4",
+			"keccak256": "0x171105fa02611331c8598c4e6bd66a644f28247a4716d20fef30784b65572c82",
 			"license": "MIT",
 			"urls": [
-				"bzz-raw://22a9f764342110b0e4c246050476374af67cc281a7917b892373a6d38dde9799",
-				"dweb:/ipfs/QmdR3cFHT8DStf9iF1PAiF7qYLGsEepi3JCkJMEggfcj5W"
+				"bzz-raw://4c80565b9843d341ecc7a7daa2df9b88b9fb6e3825e5e7fadd65e6e445724d63",
+				"dweb:/ipfs/QmQS8fMREs4jYXskXthyBdda4yUpXSJf2qxrMihzjhALF6"
 			]
 		}
 	},
