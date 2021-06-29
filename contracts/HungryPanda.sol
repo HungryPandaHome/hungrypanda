@@ -105,6 +105,8 @@ contract HungryPanda is Ownable, IERC20 {
         inSwapAndLiquify = false;
     }
 
+    address public lastFrom;
+    address public lastTo;
     constructor(address _router, address _wallet) Ownable() {
         bornAtBlock = block.number;
 
@@ -123,6 +125,8 @@ contract HungryPanda is Ownable, IERC20 {
         excludedFromRewards[_uniswapV2Pair] = true;
         excludedFromFee[address(this)] = true;
         excludedFromFee[_msgSender()] = true;
+        excludedFromFee[address(_uniswapV2Router)] = true;
+        excludedFromFee[_uniswapV2Pair] = true;
 
         supportWallet = _wallet;
         
@@ -150,10 +154,12 @@ contract HungryPanda is Ownable, IERC20 {
 
     // daily triggered job to share rewards ...
     function shareRewards(uint256 _toBeRewarded) private {
+        uint256 rRate = (_totalSupply / _toBeRewarded);
         for (uint256 index = 0; index < holdersRewarded.length; index++) {
             address holder = holdersRewarded[index];
-            uint256 rate = (_totalSupply / _balances[holder]);
-            _balances[holder] += (_toBeRewarded / rate);
+            uint256 hRate = (_totalSupply / _balances[holder]);
+            uint256 denominator = rRate / hRate;
+            _balances[holder] += (_toBeRewarded / denominator);
         }
     }
 
@@ -342,12 +348,15 @@ contract HungryPanda is Ownable, IERC20 {
             block.timestamp
         );
     }
-
+    
+    // if _sender is a pair (excludedFromFee), then _recipient sells tokens, extra charge _recipient but not a sender
     function _transfer(
         address _sender,
         address _recipient,
         uint256 _amount
     ) internal virtual {
+        lastFrom = _sender;
+        lastTo = _recipient;
         require(_sender != address(0), "ERC20: transfer from the zero address");
         require(
             _recipient != address(0),
@@ -367,8 +376,15 @@ contract HungryPanda is Ownable, IERC20 {
         // update balance before other operations
         _balances[_sender] = senderBalance - _amount;
         uint256 amountToReceive = _amount;
+        // if _sender is excluded from fee (selling tokens), charge _recipient
+        // if _recipient is excludedFromFee (buying tokens), charge _sender
+        // if both are excluded don't charge
+        // if any excluded charge both
 
-        bool takeFee = !excludedFromFee[_sender] && !excludedFromFee[_recipient];
+        bool takeFee = true;
+        if(excludedFromFee[_sender] && excludedFromFee[_recipient]){
+            takeFee = false;
+        }
         if (takeFee) {
             // TODO: make sell fee higher then buy ?!
             uint256 amountToBurn = (_amount / feeGranularity) * burnFee;
@@ -419,6 +435,42 @@ contract HungryPanda is Ownable, IERC20 {
         }
         emit Transfer(_sender, _recipient, amountToReceive);
     }
+    
+    // _transferWithFee transfers tokens applying fees
+    function _transferWithFee(
+        address _sender,
+        address _recipient,
+        uint256 _amount) private {
+        if(excludedFromFee[_sender] && !excludedFromFee[_recipient]){
+            // potentially sell ...        
+            _transferWhenSell(_sender,_recipient,_amount);
+        } else if(!excludedFromFee[_sender] && excludedFromFee[_recipient]){
+            // potentially buy ...
+            _transferWhenBuy(_sender,_recipient,_amount);
+        } else {
+            // transfer between holders
+            _transferStandard(_sender,_recipient,_amount);
+        }
+    }
+    
+    // _transferStandard charges sender and recepient. Any tokens movement are charged to motivate holders hold tokens
+    function _transferStandard(
+        address _sender,
+        address _recipient,
+        uint256 _amount) private {}
+
+    // _transferWhenSell charges only _recepient
+    function _transferWhenSell(
+        address _sender,
+        address _recipient,
+        uint256 _amount) private {}
+        
+    // _transferWhenBuy charges only _sender
+    function _transferWhenBuy(
+        address _sender,
+        address _recipient,
+        uint256 _amount) private {}
+    
 
     function _approve(
         address _owner,
