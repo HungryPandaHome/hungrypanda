@@ -691,6 +691,19 @@
 			},
 			{
 				"inputs": [],
+				"name": "totalHolders",
+				"outputs": [
+					{
+						"internalType": "uint256",
+						"name": "",
+						"type": "uint256"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [],
 				"name": "totalSupply",
 				"outputs": [
 					{
@@ -877,11 +890,11 @@
 			]
 		},
 		"contracts/HungryPanda.sol": {
-			"keccak256": "0x01f9f461ed18dcf11b1ff5b4054e114f9535e93f571837213963770fdb1e6975",
+			"keccak256": "0x621eab7cb2e37419ec64302866075320415fd35d774bb8ed9cf78c52aa279486",
 			"license": "MIT",
 			"urls": [
-				"bzz-raw://3819b158cb21eae0013f7f84232769724ee9e9c507ce7ba064e5d784ab75ddac",
-				"dweb:/ipfs/QmZnP9LpFxc85LfrQFwDJf3TH45KzPAQaTikDiU6GHuFTg"
+				"bzz-raw://8af48ffd49b9df6a52786e1969872801e524eb4a6c58213242880e64ce5be282",
+				"dweb:/ipfs/Qmd8aCAJnHZ6VnVJS7gnqnUnEqVZrX7K5gWZ2aonEo43Wz"
 			]
 		}
 	},
