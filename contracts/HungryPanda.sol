@@ -63,19 +63,19 @@ contract HungryPanda is Ownable, IERC20 {
 
     uint8 private constant _decimals = 18;
     uint256 private constant DECIMALFACTOR = 10**_decimals;
-    uint256 private _totalSupply = 10 * 10**14 * DECIMALFACTOR;
+    uint256 private _totalSupply = 10**15 * DECIMALFACTOR;
 
     string private _name = "HungryPanda";
     string private _symbol = "HNP";
 
-    uint256 public constant maxTxAmount = 10 * 10**13 * DECIMALFACTOR; // 1%
-    uint256 public constant minimalSupply = 3 * 10**14 * DECIMALFACTOR; // 70% can be burnt
+    uint256 public constant maxTxAmount = 10**14 * DECIMALFACTOR; // 1%
+    uint256 public constant minimalSupply = 4 * 10**14 * DECIMALFACTOR; // 70% can be burnt
     uint256 public constant numTokensSellToAddLiquidity =
         10 * 10**11 * DECIMALFACTOR; // 0.1%
 
-    uint256 public taxFee = 5;
+    uint256 public taxFee = 4;
     uint256 public burnFee = 1;
-    uint256 public liquidityFee = 3;
+    uint256 public liquidityFee = 4;
     uint256 public supportFee = 1;
     uint256 public taxFeeOrigin = taxFee;
     uint256 public burnFeeOrigin = burnFee;
@@ -83,14 +83,12 @@ contract HungryPanda is Ownable, IERC20 {
     uint256 public supportFeeOrigin = supportFee;
 
     uint256 public totalBurned = 0;
-    uint256 public rewardBalance = 0;
     uint256 public rewardTotal = 0;
     uint256 public totalSupported = 0;
     address public immutable supportWallet;
 
     uint256 public constant feeGranularity = 100;
-    uint256 public constant blocksPeriodSize = 60;
-    uint256 public immutable bornAtBlock;
+    uint256 public immutable bornAtTime;
 
     IUniswapV2Router02 public immutable uniswapV2Router;
     address public immutable uniswapV2Pair;
@@ -114,7 +112,7 @@ contract HungryPanda is Ownable, IERC20 {
     }
 
     constructor(address _router, address _wallet) Ownable() {
-        bornAtBlock = block.number;
+        bornAtTime = block.timestamp;
 
         IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(_router);
         // Create a uniswap pair for this new token
@@ -153,7 +151,6 @@ contract HungryPanda is Ownable, IERC20 {
         emit Transfer(_sender, address(0), reallyBurned);
     }
 
-    // daily triggered job to share rewards ...
     function shareRewards(address _sender, uint256 _fee) private {
         rewardTotal += _fee;
         uint256 integer = _totalSupply / DECIMALFACTOR;
@@ -165,12 +162,11 @@ contract HungryPanda is Ownable, IERC20 {
             }
             uint256 reward = _fee / (integer / balance);
             _balances[holder] += reward;
-            emit Transfer(_sender, holder, rewardBalance);
+            emit Transfer(_sender, holder, reward);
         }
     }
 
-    // daily triggered job to share rewards ...
-    function takeSupport(address _sender, uint256 _toBeTaken) public {
+    function takeSupport(address _sender, uint256 _toBeTaken) private {
         _balances[supportWallet] += _toBeTaken;
         totalSupported += _toBeTaken;
         emit Transfer(_sender, supportWallet, _toBeTaken);
@@ -181,23 +177,14 @@ contract HungryPanda is Ownable, IERC20 {
         emit SwapAndLiquifyEnabledUpdated(_enabled);
     }
 
-    function blockPeriods(uint256 size) public view returns (uint256) {
-        uint256 blocksAfter = block.number - bornAtBlock;
-        uint256 periods = blocksAfter / size + 1; // starts from 1
+    function timePeriods(uint256 period) public view returns (uint256) {
+        uint256 timeAfter = block.timestamp - bornAtTime;
+        uint256 periods = timeAfter / period + 1; // starts from 1
         return periods;
     }
 
-    function priceForWETH(uint256 _wethAmount)
-        public
-        view
-        returns (uint256[] memory)
-    {
-        address[] memory path = makePairPath();
-        return uniswapV2Router.getAmountsOut(_wethAmount, path);
-    }
-
     function calculateMaxTxAmount() public view returns (uint256) {
-        uint256 periods = blockPeriods(blocksPeriodSize);
+        uint256 periods = timePeriods(3 minutes);
         if (periods < 10) {
             return maxTxAmount / (10 - periods);
         }
@@ -205,7 +192,7 @@ contract HungryPanda is Ownable, IERC20 {
     }
 
     function calculateExtraFee() public view returns (uint256) {
-        uint256 periods = blockPeriods(blocksPeriodSize);
+        uint256 periods = timePeriods(10 minutes);
         if (periods < 10) {
             return (liquidityFee * (10 - periods)) / 2; // x * 4, x * 3, x * 2 ... x * 0;
         }
