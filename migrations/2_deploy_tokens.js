@@ -129,7 +129,7 @@ module.exports = async function (deployer, _network, accounts) {
         return {
           core: o.core,
           rest: o.rest,
-          admin: accounts[1],
+          admin: accounts[0],
           router: '0xD99D1c33F9fC3444f8101754aBC46c52416550D1'
         };
       case "bscMainnet":
