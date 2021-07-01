@@ -2,3 +2,4 @@ node_modules/
 .deps/
 *.key
 *.secret
+deployment.json
