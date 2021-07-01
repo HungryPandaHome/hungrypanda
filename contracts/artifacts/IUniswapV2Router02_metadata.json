@@ -203,11 +203,11 @@
 			]
 		},
 		"contracts/HungryPanda.sol": {
-			"keccak256": "0x45422854915f1d6a9eb56791a68c5fd55f1078025dca21de59ed98bb9db8f86e",
+			"keccak256": "0xd8f637a7568fedeefaa7228fc4bae68b7edfcebbcbeaa8e303eab40260bb1fc8",
 			"license": "MIT",
 			"urls": [
-				"bzz-raw://b2f032ec5984e02e5a072b0a7729575cda8ed869bfa3ce64472657be9cebebf2",
-				"dweb:/ipfs/QmUqJwANqB6KKnxzCoUSpvHnKu28pdMwN5jjdiME2yqTCt"
+				"bzz-raw://9f7ef91b6de21fa3ba093e9fb6d82dfd20dd487aae4c78bb62e53b5d5ee6655c",
+				"dweb:/ipfs/QmfLxNDfReEZzcPWn6THjuQNpgTfZFbkDLf9kyxBNBDgv4"
 			]
 		}
 	},

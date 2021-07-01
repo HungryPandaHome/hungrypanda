@@ -5,12 +5,13 @@ pragma solidity >=0.8.6 <0.9.0;
 // should be able to withdraw amount of tokens once per month
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-contract MonthlyEscrow {
+contract PeriodicEscrow {
     using SafeERC20 for IERC20;
 
     address public immutable recipient;
     uint256 public immutable INIT_DATE = block.timestamp;
-    uint256 public constant TIME_PERIOD = (30 days);
+    uint256 public immutable OPEN_DATE;
+    uint256 public immutable TIME_PERIOD;
 
     uint256 public amount;
     uint256 public partAmount;
@@ -23,9 +24,20 @@ contract MonthlyEscrow {
     IERC20 public token;
     bool isEntered = false;
 
-    constructor(address _recepient) {
+    constructor(
+        address _recepient,
+        uint256 _openAfter,
+        uint256 _periodSize
+    ) {
         admin = msg.sender;
         recipient = _recepient;
+        TIME_PERIOD = _periodSize;
+        OPEN_DATE = block.timestamp + _openAfter;
+    }
+
+    modifier whenOpened() {
+        require(block.timestamp >= OPEN_DATE, "Escrow: is not opened yet");
+        _;
     }
 
     modifier onlyAdmin() {
@@ -76,13 +88,13 @@ contract MonthlyEscrow {
     }
 
     function _periodsPast() private view returns (uint256) {
-        return (block.timestamp - INIT_DATE) / TIME_PERIOD;
+        return (block.timestamp - OPEN_DATE) / TIME_PERIOD;
     }
 
     // _transfer transfers allowed amount of tokens to recipient ...
     // parts taken must be less then total parts
     // and periods must be greater then  partsAreTaken ...
-    function _transfer() private whenNotLocked notTaken {
+    function _transfer() private whenOpened whenNotLocked notTaken {
         uint256 periods = _periodsPast();
         require(periods > partsAreTaken, "Escrow: to early");
         token.safeTransfer(recipient, partAmount);

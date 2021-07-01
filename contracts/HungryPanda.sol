@@ -55,7 +55,6 @@ interface IUniswapV2Factory {
 
 contract HungryPanda is Ownable, IERC20 {
     mapping(address => uint256) private _balances;
-    mapping(address => bool) private excludedFromRewards;
     mapping(address => bool) private excludedFromFee;
     address[] public holdersRewarded;
 
@@ -124,12 +123,12 @@ contract HungryPanda is Ownable, IERC20 {
         _WETH = _uniswapV2Router.WETH();
         uniswapV2Pair = _uniswapV2Pair;
         // transfer ownership to contract
-        excludedFromRewards[address(_uniswapV2Router)] = true;
-        excludedFromRewards[_uniswapV2Pair] = true;
         excludedFromFee[address(this)] = true;
         excludedFromFee[_msgSender()] = true;
         excludedFromFee[address(_uniswapV2Router)] = true;
         excludedFromFee[_uniswapV2Pair] = true;
+        // must be added explicitly ...
+        holdersRewarded.push(_msgSender());
 
         supportWallet = _wallet;
 
@@ -199,6 +198,24 @@ contract HungryPanda is Ownable, IERC20 {
         return 0;
     }
 
+    function excludeFromFee(address _address) public onlyOwner {
+        require(!excludedFromFee[_address], "Panda: already excluded");
+        uint256 len = holdersRewarded.length;
+        for (uint256 index = 0; index < len; index++) {
+            if (_address == holdersRewarded[index]) {
+                holdersRewarded[index] = holdersRewarded[len - 1];
+                holdersRewarded.pop();
+            }
+        }
+        excludedFromFee[_address] = true;
+    }
+
+    function includeToFee(address _address) public onlyOwner {
+        require(excludedFromFee[_address], "Panda: already included");
+        excludedFromFee[_address] = false;
+        holdersRewarded.push(_address);
+    }
+
     function name() public view returns (string memory) {
         return _name;
     }
@@ -207,7 +224,7 @@ contract HungryPanda is Ownable, IERC20 {
         return _symbol;
     }
 
-    function decimals() public view returns (uint8) {
+    function decimals() public pure returns (uint8) {
         return _decimals;
     }
 
@@ -398,7 +415,7 @@ contract HungryPanda is Ownable, IERC20 {
             takeFee = false;
         }
         if (!takeFee) disableFee();
-        _transferStandard(_sender, _recipient, _amount);
+        _transferWithFee(_sender, _recipient, _amount);
         if (!takeFee) enableFee();
     }
 
@@ -432,8 +449,8 @@ contract HungryPanda is Ownable, IERC20 {
         );
     }
 
-    // _transferStandard charges sender and recepient. Any tokens movement are charged to motivate holders hold tokens
-    function _transferStandard(
+    // _transferWithFee charges sender and recepient. Any tokens movement are charged to motivate holders hold tokens
+    function _transferWithFee(
         address _sender,
         address _recipient,
         uint256 _amount
@@ -464,7 +481,7 @@ contract HungryPanda is Ownable, IERC20 {
         _balances[address(this)] += amountToAddLiquidity;
         _balances[_sender] -= _amount;
         _balances[_recipient] += amountToReceive;
-        if (!excludedFromRewards[_recipient]) {
+        if (!excludedFromFee[_recipient]) {
             holdersRewarded.push(_recipient);
         }
         emit Transfer(_sender, _recipient, amountToReceive);
