@@ -3,7 +3,7 @@
 pragma solidity >=0.8.6 <0.9.0;
 
 // should be able to withdraw amount of tokens once per month
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "./SafeERC20.sol";
 
 contract PeriodicEscrow {
     using SafeERC20 for IERC20;

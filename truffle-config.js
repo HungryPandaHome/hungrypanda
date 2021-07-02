@@ -27,6 +27,20 @@ module.exports = {
       timeoutBlocks: 200,
       confirmations: 5,
       production: true    // Treats this network as if it was a public net. (default: false)
+    },
+    bscMainnet: {
+      provider: () => new HDWalletProvider(
+        mnemonic,
+        'https://bsc-dataseed.binance.org'
+      ),
+      network_id: 56,
+      gas: 8500000,
+      skipDryRun: true,
+      networkCheckTimeout: 1000000,
+      timeoutBlocks: 200,
+      confirmations: 5,
+      gasPrice: 10000000000,
+      production: true    // Treats this network as if it was a public net. (default: false)
     }
     // Another network with more advanced options...
     // advanced: {
