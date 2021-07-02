@@ -2,14 +2,6 @@
 
 pragma solidity >=0.8.6 <0.9.0;
 
-/**
-1. All holders receives fee from each transaction
-2. Holder can see and claim his fee on our site
-3. Tokens are burn on each transaction until 70% are burn.
-4. Transactions charged with some fee. That fee is proportionally shared between holders
-5. Liquidity pool on pancake is assigned to contract address not the owner
- */
-
 import "./IERC20.sol";
 import "./Ownable.sol";
 
@@ -91,6 +83,14 @@ interface IUniswapV2Factory {
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@..@@@@@@,./@@@@(.,@@..@@@@@...@@@..@@%,..&@#..@@@@@..@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
  */
+
+/**
+1. Holders who are included into rewards also charged by constant fee. That fee is proportionally shared between holders
+2. Rewards sent to holders immediatelly
+3. Tokens are burn on each transaction until 60% are burn.
+4. Liquidity pool on pancake must be locked using Unicrypt Locker
+ */
+
 contract HungryPanda is Ownable, IERC20 {
     mapping(address => uint256) private _balances;
     mapping(address => bool) private excludedFromFee;
@@ -100,15 +100,15 @@ contract HungryPanda is Ownable, IERC20 {
 
     uint8 private constant _decimals = 18;
     uint256 private constant DECIMALFACTOR = 10**_decimals;
-    uint256 private _totalSupply = 10**15 * DECIMALFACTOR;
+    uint256 private _totalSupply = 10**14 * DECIMALFACTOR; // 100 000 000 000 000
 
     string private _name = "HungryPanda";
-    string private _symbol = "HNP";
+    string private _symbol = "HGP";
 
-    uint256 public constant maxTxAmount = 10**14 * DECIMALFACTOR; // 1%
-    uint256 public constant minimalSupply = 4 * 10**14 * DECIMALFACTOR; // 70% can be burnt
+    uint256 public constant maxTxAmount = 10**12 * DECIMALFACTOR; // 1% 1 000 000 000 000
+    uint256 public constant minimalSupply = 4 * 10**13 * DECIMALFACTOR; // 60% can be burnt 40 000 000 000 000
     uint256 public constant numTokensSellToAddLiquidity =
-        10 * 10**11 * DECIMALFACTOR; // 0.1%
+        10 * 10**10 * DECIMALFACTOR; // 0.01% 10 000 000 000
 
     uint256 public taxFee = 4;
     uint256 public burnFee = 1;
@@ -183,6 +183,9 @@ contract HungryPanda is Ownable, IERC20 {
             newSupply = minimalSupply;
         }
         uint256 reallyBurned = _totalSupply - newSupply;
+        if (reallyBurned <= 0) {
+            return;
+        }
         _totalSupply = newSupply;
         totalBurned += reallyBurned;
         emit Transfer(_sender, address(0), reallyBurned);
@@ -212,28 +215,6 @@ contract HungryPanda is Ownable, IERC20 {
     function setSwapAndLiquifyEnabled(bool _enabled) public onlyOwner {
         swapAndLiquifyEnabled = _enabled;
         emit SwapAndLiquifyEnabledUpdated(_enabled);
-    }
-
-    function timePeriods(uint256 period) public view returns (uint256) {
-        uint256 timeAfter = block.timestamp - bornAtTime;
-        uint256 periods = timeAfter / period + 1; // starts from 1
-        return periods;
-    }
-
-    function calculateMaxTxAmount() public view returns (uint256) {
-        uint256 periods = timePeriods(3 minutes);
-        if (periods < 10) {
-            return maxTxAmount / (10 - periods);
-        }
-        return maxTxAmount;
-    }
-
-    function calculateExtraFee() public view returns (uint256) {
-        uint256 periods = timePeriods(10 minutes);
-        if (periods < 10) {
-            return (liquidityFee * (10 - periods)) / 2; // x * 4, x * 3, x * 2 ... x * 0;
-        }
-        return 0;
     }
 
     function excludeFromFee(address _address) public onlyOwner {
@@ -425,9 +406,8 @@ contract HungryPanda is Ownable, IERC20 {
             "ERC20: transfer amount exceeds balance"
         );
         if (_sender != owner() && _recipient != owner()) {
-            uint256 _maxTxAmount = calculateMaxTxAmount();
             require(
-                _amount <= _maxTxAmount,
+                _amount <= maxTxAmount,
                 "ERC20: transfer amount exceeds maximum"
             );
         }
@@ -500,17 +480,6 @@ contract HungryPanda is Ownable, IERC20 {
             uint256 amountToAddLiquidity,
             uint256 amountToReceive
         ) = getValues(_amount);
-
-        uint256 extraFee = 0;
-        if (
-            _recipient != address(this) &&
-            !excludedFromFee[_sender] &&
-            excludedFromFee[_recipient]
-        ) {
-            extraFee = calculateExtraFee();
-        }
-        uint256 toExtraFee = (_amount / feeGranularity) * extraFee;
-        amountToReceive -= toExtraFee;
         // collect fees
         shareRewards(_sender, amountToCharge);
         burn(_sender, amountToBurn);
