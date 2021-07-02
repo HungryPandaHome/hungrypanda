@@ -1,3 +1,5 @@
 # HUNGRY PANDA TOKEN
 
-![hungry panda](https://github.com/HungryPandaHome/hungrypanda/blob/develop/panda_logo.svg?raw=true)
+<p align="center">
+  <img src="./rsc/panda_logo.svg" width="100%" title="HungryPanda">
+</p>
