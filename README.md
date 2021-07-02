@@ -6,12 +6,11 @@ Official web site [HungryPanda Coin](https://hungrypanda.io)
 
 ## Our social channels
 
-[![Twitter](./rsc/twitter.png)](https://twitter.com)
-[![Reddit](./rsc/reddit.png)](https://twitter.com)
-[![Discord](./rsc/discord.png)](https://twitter.com)
-[![Telegram](./rsc/telegram.png)](https://twitter.com)
-[![Facebook](./rsc/facebook.png)](https://twitter.com)
-[![TikTok](./rsc/tiktok.png)](https://twitter.com)
+[![Twitter](./rsc/twitter.png)](https://twitter.com/HungryP26875605)
+[![Reddit](./rsc/reddit.png)](https://www.reddit.com/user/HungryPandaCoin)
+[![Discord](./rsc/discord.png)](https://discord.gg/jP9Prxdy)
+[![Telegram](./rsc/telegram.png)](https://t.me/hungrypanda_English)
+[![Facebook](./rsc/facebook.png)](https://www.facebook.com/profile.php?id=100069116186252)
 
 
 <p align="center">
