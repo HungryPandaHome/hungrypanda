@@ -2,6 +2,18 @@
 
 ## The Most Profitable Token In The Whole World 
 
+Official web site [HungryPanda Coin](https://hungrypanda.io)
+
+## Our social channels
+
+[![Twitter](./rsc/twitter.png)](https://twitter.com)
+[![Reddit](./rsc/reddit.png)](https://twitter.com)
+[![Discord](./rsc/discord.png)](https://twitter.com)
+[![Telegram](./rsc/telegram.png)](https://twitter.com)
+[![Facebook](./rsc/facebook.png)](https://twitter.com)
+[![TikTok](./rsc/tiktok.png)](https://twitter.com)
+
+
 <p align="center">
   <img src="./rsc/frame.png" width="100%" title="HungryPanda">
 </p>
