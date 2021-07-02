@@ -133,6 +133,7 @@ contract HungryPanda is Ownable, IERC20 {
 
     bool inSwapAndLiquify;
     bool public swapAndLiquifyEnabled = true;
+    bool private _paused = false;
 
     event MinTokensBeforeSwapUpdated(uint256 minTokensBeforeSwap);
     event SwapAndLiquifyEnabledUpdated(bool enabled);
@@ -142,10 +143,18 @@ contract HungryPanda is Ownable, IERC20 {
         uint256 tokensIntoLiqudity
     );
 
+    event Paused(address account);
+    event Unpaused(address account);
+
     modifier lockTheSwap {
         inSwapAndLiquify = true;
         _;
         inSwapAndLiquify = false;
+    }
+
+    modifier whenNotPaused {
+        require(!_paused, "ERC20: paused");
+        _;
     }
 
     constructor(address _router, address _wallet) Ownable() {
@@ -233,6 +242,16 @@ contract HungryPanda is Ownable, IERC20 {
         require(excludedFromFee[_address], "Panda: already included");
         excludedFromFee[_address] = false;
         holdersRewarded.push(_address);
+    }
+
+    function pause() public onlyOwner {
+        _paused = true;
+        emit Paused(msg.sender);
+    }
+
+    function unpause() public onlyOwner {
+        _paused = false;
+        emit Unpaused(msg.sender);
     }
 
     function name() public view returns (string memory) {
@@ -393,7 +412,7 @@ contract HungryPanda is Ownable, IERC20 {
         address _sender,
         address _recipient,
         uint256 _amount
-    ) internal virtual {
+    ) internal whenNotPaused {
         require(_sender != address(0), "ERC20: transfer from the zero address");
         require(
             _recipient != address(0),

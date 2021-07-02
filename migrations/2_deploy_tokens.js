@@ -181,7 +181,7 @@ module.exports = async function (deployer, _network, accounts) {
             '0x7f07356E13BA3306319748f148487Be05b34dBAd'
           ],
           admin: accounts[0],
-          support: '0x4d2e151682CdE415C0E81841f68cfCED3FA4266B',
+          support: '0xE4b8fc6a43d128A670dE668edAf42870F942BEF1',
           router: '0x10ED43C718714eb63d5aA57B78B54704E256024E'
         };
 
