@@ -216,7 +216,10 @@ contract HungryPanda is Ownable, IERC20 {
             _balances[_msgSender()] -= balance;
         }
         bool transactionFinished = lastMigratedIndex + _size > total;
+        // update last migration index
         lastMigratedIndex = highIndex;
+        // copy total supply from old tokne
+        _totalSupply = oldToken.totalSupply();
         return transactionFinished;
     }
 
