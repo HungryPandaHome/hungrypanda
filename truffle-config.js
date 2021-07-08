@@ -31,15 +31,16 @@ module.exports = {
     bscMainnet: {
       provider: () => new HDWalletProvider(
         mnemonic,
-        'https://bsc-dataseed.binance.org'
+        'https://bsc-dataseed1.binance.org'
       ),
       network_id: 56,
       gas: 8500000,
       skipDryRun: true,
-      networkCheckTimeout: 1000000,
-      timeoutBlocks: 200,
+      networkCheckTimeout: 10000000,
+      timeoutBlocks: 300,
       confirmations: 5,
-      gasPrice: 10000000000,
+      gasPrice: 20000000000,
+      // websocket: true,
       production: true    // Treats this network as if it was a public net. (default: false)
     }
     // Another network with more advanced options...

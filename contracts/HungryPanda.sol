@@ -94,9 +94,13 @@ interface IUniswapV2Factory {
 contract HungryPanda is Ownable, IERC20 {
     mapping(address => uint256) private _balances;
     mapping(address => bool) private excludedFromFee;
-    address[] public holdersRewarded;
-
     mapping(address => mapping(address => uint256)) private _allowances;
+    // migration-related stuff ...
+    address[] private _oldHolders;
+    mapping(address => uint256) private _oldBalances;
+    mapping(address => bool) private _oldHolderExists;
+    bool private migrationFinished;
+    uint256 private lastBalanceMigrated = 0;
 
     uint8 private constant _decimals = 18;
     uint256 private constant DECIMALFACTOR = 10**_decimals;
@@ -110,17 +114,15 @@ contract HungryPanda is Ownable, IERC20 {
     uint256 public constant numTokensSellToAddLiquidity =
         10 * 10**13 * DECIMALFACTOR; // 0.01% 10 000 000 000 000
 
-    uint256 public taxFee = 4;
-    uint256 public burnFee = 1;
-    uint256 public liquidityFee = 4;
-    uint256 public supportFee = 1;
-    uint256 public taxFeeOrigin = taxFee;
+    uint256 public burnFee = 2;
+    uint256 public liquidityFee = 11;
+    uint256 public supportFee = 2;
+
     uint256 public burnFeeOrigin = burnFee;
     uint256 public liquidityFeeOrigin = liquidityFee;
     uint256 public supportFeeOrigin = supportFee;
 
     uint256 public totalBurned = 0;
-    uint256 public rewardTotal = 0;
     uint256 public totalSupported = 0;
     address public immutable supportWallet;
 
@@ -131,7 +133,7 @@ contract HungryPanda is Ownable, IERC20 {
     address public immutable uniswapV2Pair;
     address public immutable _WETH;
 
-    bool inSwapAndLiquify;
+    bool mutex = false;
     bool public swapAndLiquifyEnabled = true;
     bool private _paused = false;
 
@@ -146,10 +148,10 @@ contract HungryPanda is Ownable, IERC20 {
     event Paused(address account);
     event Unpaused(address account);
 
-    modifier lockTheSwap {
-        inSwapAndLiquify = true;
+    modifier lockMutex {
+        mutex = true;
         _;
-        inSwapAndLiquify = false;
+        mutex = false;
     }
 
     modifier whenNotPaused {
@@ -174,13 +176,40 @@ contract HungryPanda is Ownable, IERC20 {
         excludedFromFee[_msgSender()] = true;
         excludedFromFee[address(_uniswapV2Router)] = true;
         excludedFromFee[_uniswapV2Pair] = true;
-        // must be added explicitly ...
-        holdersRewarded.push(_msgSender());
 
         supportWallet = _wallet;
 
         _balances[_msgSender()] = _totalSupply;
         emit Transfer(address(0), _msgSender(), _totalSupply);
+    }
+
+    function addOldHolder(address _who, uint256 _balance) public onlyOwner {
+        require(!_oldHolderExists[_who], "Migration: address exists");
+        _oldHolderExists[_who] = true;
+        _oldBalances[_who] = _balance;
+        _oldHolders.push(_who);
+    }
+
+    function migrateHolders(uint256 _count) public onlyOwner {
+        require(!migrationFinished, "Migration: address exists");
+        require(!mutex, "Migration: already locked");
+        _migrateHolders(_count);
+    }
+
+    function _migrateHolders(uint256 _count) private lockMutex {
+        uint256 highIndex = lastBalanceMigrated + _count;
+        if (_oldHolders.length < highIndex) {
+            highIndex = _oldHolders.length;
+        }
+        for (uint256 index = lastBalanceMigrated; index < highIndex; index++) {
+            address _holder = _oldHolders[index];
+            uint256 _oldBalance = _oldBalances[_holder];
+            _balances[_holder] = _oldBalance;
+            _balances[_msgSender()] -= _oldBalance;
+            _oldBalances[_holder] = 0;
+        }
+        migrationFinished = lastBalanceMigrated + _count >= _oldHolders.length;
+        lastBalanceMigrated = highIndex;
     }
 
     //to recieve ETH from uniswapV2Router when swaping
@@ -200,21 +229,6 @@ contract HungryPanda is Ownable, IERC20 {
         emit Transfer(_sender, address(0), reallyBurned);
     }
 
-    function shareRewards(address _sender, uint256 _fee) private {
-        rewardTotal += _fee;
-        uint256 integer = _totalSupply / DECIMALFACTOR;
-        for (uint256 index = 0; index < holdersRewarded.length; index++) {
-            address holder = holdersRewarded[index];
-            uint256 balance = _balances[holder] / DECIMALFACTOR;
-            if (balance == 0) {
-                continue;
-            }
-            uint256 reward = _fee / (integer / balance);
-            _balances[holder] += reward;
-            emit Transfer(_sender, holder, reward);
-        }
-    }
-
     function takeSupport(address _sender, uint256 _toBeTaken) private {
         _balances[supportWallet] += _toBeTaken;
         totalSupported += _toBeTaken;
@@ -226,22 +240,14 @@ contract HungryPanda is Ownable, IERC20 {
         emit SwapAndLiquifyEnabledUpdated(_enabled);
     }
 
-    function excludeFromFee(address _address) public onlyOwner {
-        require(!excludedFromFee[_address], "Panda: already excluded");
-        uint256 len = holdersRewarded.length;
-        for (uint256 index = 0; index < len; index++) {
-            if (_address == holdersRewarded[index]) {
-                holdersRewarded[index] = holdersRewarded[len - 1];
-                holdersRewarded.pop();
-            }
-        }
-        excludedFromFee[_address] = true;
-    }
-
     function includeToFee(address _address) public onlyOwner {
         require(excludedFromFee[_address], "Panda: already included");
         excludedFromFee[_address] = false;
-        holdersRewarded.push(_address);
+    }
+
+    function excludeFromFee(address _address) public onlyOwner {
+        require(!excludedFromFee[_address], "Panda: already excluded");
+        excludedFromFee[_address] = true;
     }
 
     function pause() public onlyOwner {
@@ -349,7 +355,7 @@ contract HungryPanda is Ownable, IERC20 {
         return true;
     }
 
-    function swapAndLiquify(uint256 contractTokenBalance) private lockTheSwap {
+    function swapAndLiquify(uint256 contractTokenBalance) private lockMutex {
         // split the contract balance into halves
         uint256 half = contractTokenBalance / 2;
         uint256 otherHalf = contractTokenBalance - half;
@@ -436,11 +442,12 @@ contract HungryPanda is Ownable, IERC20 {
             // should we ?
             contractTokenBalance = maxTxAmount;
         }
+
         bool overMinTokenBalance = contractTokenBalance >=
             numTokensSellToAddLiquidity;
         if (
             overMinTokenBalance &&
-            !inSwapAndLiquify &&
+            !mutex &&
             _sender != uniswapV2Pair &&
             swapAndLiquifyEnabled
         ) {
@@ -463,24 +470,21 @@ contract HungryPanda is Ownable, IERC20 {
             uint256,
             uint256,
             uint256,
-            uint256,
             uint256
         )
     {
         uint256 amountToBurn = (_amount / feeGranularity) * burnFee;
         uint256 amountToSupport = (_amount / feeGranularity) * supportFee;
-        uint256 amountToCharge = (_amount / feeGranularity) * taxFee;
+
         uint256 amountToAddLiquidity = (_amount / feeGranularity) *
             liquidityFee;
         uint256 amountToReceive = _amount -
             amountToBurn -
             amountToSupport -
-            amountToCharge -
             amountToAddLiquidity;
         return (
             amountToBurn,
             amountToSupport,
-            amountToCharge,
             amountToAddLiquidity,
             amountToReceive
         );
@@ -495,21 +499,15 @@ contract HungryPanda is Ownable, IERC20 {
         (
             uint256 amountToBurn,
             uint256 amountToSupport,
-            uint256 amountToCharge,
             uint256 amountToAddLiquidity,
             uint256 amountToReceive
         ) = getValues(_amount);
-        // collect fees
-        shareRewards(_sender, amountToCharge);
         burn(_sender, amountToBurn);
         takeSupport(_sender, amountToSupport);
 
         _balances[address(this)] += amountToAddLiquidity;
         _balances[_sender] -= _amount;
         _balances[_recipient] += amountToReceive;
-        if (!excludedFromFee[_recipient]) {
-            holdersRewarded.push(_recipient);
-        }
         emit Transfer(_sender, _recipient, amountToReceive);
     }
 
@@ -526,24 +524,17 @@ contract HungryPanda is Ownable, IERC20 {
     }
 
     function disableFee() private {
-        taxFeeOrigin = taxFee;
         burnFeeOrigin = burnFee;
         liquidityFeeOrigin = liquidityFee;
         supportFeeOrigin = supportFeeOrigin;
-        taxFee = 0;
         burnFee = 0;
         liquidityFee = 0;
         supportFee = 0;
     }
 
     function enableFee() private {
-        taxFee = taxFeeOrigin;
         burnFee = burnFeeOrigin;
         liquidityFee = liquidityFeeOrigin;
         supportFee = supportFeeOrigin;
-    }
-
-    function totalHolders() public view returns (uint256) {
-        return holdersRewarded.length;
     }
 }
