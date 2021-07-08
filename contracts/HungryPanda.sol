@@ -91,16 +91,16 @@ interface IUniswapV2Factory {
 4. Liquidity pool on pancake must be locked using Unicrypt Locker
  */
 
+interface IOldToken is IERC20 {
+    function totalHolders() external returns (uint256);
+
+    function holdersRewarded(uint256 index) external returns (address);
+}
+
 contract HungryPanda is Ownable, IERC20 {
     mapping(address => uint256) private _balances;
     mapping(address => bool) private excludedFromFee;
     mapping(address => mapping(address => uint256)) private _allowances;
-    // migration-related stuff ...
-    address[] private _oldHolders;
-    mapping(address => uint256) private _oldBalances;
-    mapping(address => bool) private _oldHolderExists;
-    bool private migrationFinished;
-    uint256 private lastBalanceMigrated = 0;
 
     uint8 private constant _decimals = 18;
     uint256 private constant DECIMALFACTOR = 10**_decimals;
@@ -115,7 +115,7 @@ contract HungryPanda is Ownable, IERC20 {
         10 * 10**13 * DECIMALFACTOR; // 0.01% 10 000 000 000 000
 
     uint256 public burnFee = 2;
-    uint256 public liquidityFee = 11;
+    uint256 public liquidityFee = 6;
     uint256 public supportFee = 2;
 
     uint256 public burnFeeOrigin = burnFee;
@@ -159,6 +159,8 @@ contract HungryPanda is Ownable, IERC20 {
         _;
     }
 
+    uint256 lastMigratedIndex = 0;
+
     constructor(address _router, address _wallet) Ownable() {
         bornAtTime = block.timestamp;
 
@@ -183,37 +185,31 @@ contract HungryPanda is Ownable, IERC20 {
         emit Transfer(address(0), _msgSender(), _totalSupply);
     }
 
-    function addOldHolder(address _who, uint256 _balance) public onlyOwner {
-        require(!_oldHolderExists[_who], "Migration: address exists");
-        _oldHolderExists[_who] = true;
-        _oldBalances[_who] = _balance;
-        _oldHolders.push(_who);
-    }
-
-    function migrateHolders(uint256 _count) public onlyOwner {
-        require(!migrationFinished, "Migration: address exists");
-        require(!mutex, "Migration: already locked");
-        _migrateHolders(_count);
-    }
-
-    function _migrateHolders(uint256 _count) private lockMutex {
-        uint256 highIndex = lastBalanceMigrated + _count;
-        if (_oldHolders.length < highIndex) {
-            highIndex = _oldHolders.length;
-        }
-        for (uint256 index = lastBalanceMigrated; index < highIndex; index++) {
-            address _holder = _oldHolders[index];
-            uint256 _oldBalance = _oldBalances[_holder];
-            _balances[_holder] = _oldBalance;
-            _balances[_msgSender()] -= _oldBalance;
-            _oldBalances[_holder] = 0;
-        }
-        migrationFinished = lastBalanceMigrated + _count >= _oldHolders.length;
-        lastBalanceMigrated = highIndex;
-    }
-
     //to recieve ETH from uniswapV2Router when swaping
     receive() external payable {}
+
+    function migrateOldToken(address _token, uint256 _size)
+        public
+        onlyOwner
+        returns (bool)
+    {
+        IOldToken oldToken = IOldToken(_token);
+        uint256 highIndex = lastMigratedIndex + _size;
+        uint256 total = oldToken.totalHolders();
+        if (highIndex > total) {
+            highIndex = total;
+        }
+        for (uint256 index = lastMigratedIndex; index < highIndex; index++) {
+            address holder = oldToken.holdersRewarded(index);
+            uint256 balance = oldToken.balanceOf(holder);
+            // excludeFromRewards ?
+            _balances[holder] = balance;
+            _balances[_msgSender()] -= balance;
+        }
+        bool transactionFinished = lastMigratedIndex + _size > total;
+        lastMigratedIndex = highIndex;
+        return transactionFinished;
+    }
 
     function burn(address _sender, uint256 _toBeBurned) private {
         uint256 newSupply = _totalSupply - _toBeBurned;
