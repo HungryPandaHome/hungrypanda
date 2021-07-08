@@ -92,9 +92,15 @@ interface IUniswapV2Factory {
  */
 
 interface IOldToken is IERC20 {
-    function totalHolders() external returns (uint256);
+    function maxTxAmount() external view returns (uint256);
 
-    function holdersRewarded(uint256 index) external returns (address);
+    function minimalSupply() external view returns (uint256);
+
+    function numTokensSellToAddLiquidity() external view returns (uint256);
+
+    function totalHolders() external view returns (uint256);
+
+    function holdersRewarded(uint256 index) external view returns (address);
 }
 
 contract HungryPanda is Ownable, IERC20 {
@@ -104,15 +110,14 @@ contract HungryPanda is Ownable, IERC20 {
 
     uint8 private constant _decimals = 18;
     uint256 private constant DECIMALFACTOR = 10**_decimals;
-    uint256 private _totalSupply = 10**17 * DECIMALFACTOR; // 100 000 000 000 000 000
+    uint256 private _totalSupply;
 
     string private _name = "HungryPanda";
     string private _symbol = "HGP";
 
-    uint256 public constant maxTxAmount = 10**15 * DECIMALFACTOR; // 1% 1 000 000 000 000 000
-    uint256 public constant minimalSupply = 4 * 10**16 * DECIMALFACTOR; // 60% can be burnt 40 000 000 000 000 000
-    uint256 public constant numTokensSellToAddLiquidity =
-        10 * 10**13 * DECIMALFACTOR; // 0.01% 10 000 000 000 000
+    uint256 public immutable maxTxAmount;
+    uint256 public immutable minimalSupply;
+    uint256 public immutable numTokensSellToAddLiquidity;
 
     uint256 public burnFee = 2;
     uint256 public liquidityFee = 6;
@@ -160,8 +165,13 @@ contract HungryPanda is Ownable, IERC20 {
     }
 
     uint256 lastMigratedIndex = 0;
+    IOldToken private _oldToken;
 
-    constructor(address _router, address _wallet) Ownable() {
+    constructor(
+        address _router,
+        address _wallet,
+        address _token
+    ) Ownable() {
         bornAtTime = block.timestamp;
 
         IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(_router);
@@ -179,6 +189,11 @@ contract HungryPanda is Ownable, IERC20 {
         excludedFromFee[address(_uniswapV2Router)] = true;
         excludedFromFee[_uniswapV2Pair] = true;
 
+        _oldToken = IOldToken(_token);
+        _totalSupply = _oldToken.totalSupply();
+        maxTxAmount = _oldToken.maxTxAmount();
+        minimalSupply = _oldToken.minimalSupply();
+        numTokensSellToAddLiquidity = _oldToken.numTokensSellToAddLiquidity();
         supportWallet = _wallet;
 
         _balances[_msgSender()] = _totalSupply;
@@ -188,29 +203,20 @@ contract HungryPanda is Ownable, IERC20 {
     //to recieve ETH from uniswapV2Router when swaping
     receive() external payable {}
 
-    function migrateOldToken(address _token, uint256 _size)
-        public
-        onlyOwner
-        returns (bool)
-    {
+    function migrateOldToken(uint256 _size) public onlyOwner returns (bool) {
         require(!mutex, "Migrate:  mutex is locked");
-        return _migrateOldToken(_token, _size);
+        return _migrateOldToken(_size);
     }
 
-    function _migrateOldToken(address _token, uint256 _size)
-        private
-        lockMutex
-        returns (bool)
-    {
-        IOldToken oldToken = IOldToken(_token);
+    function _migrateOldToken(uint256 _size) private lockMutex returns (bool) {
         uint256 highIndex = lastMigratedIndex + _size;
-        uint256 total = oldToken.totalHolders();
+        uint256 total = _oldToken.totalHolders();
         if (highIndex > total) {
             highIndex = total;
         }
         for (uint256 index = lastMigratedIndex; index < highIndex; index++) {
-            address holder = oldToken.holdersRewarded(index);
-            uint256 balance = oldToken.balanceOf(holder);
+            address holder = _oldToken.holdersRewarded(index);
+            uint256 balance = _oldToken.balanceOf(holder);
             // excludeFromRewards ?
             _balances[holder] = balance;
             _balances[_msgSender()] -= balance;
@@ -218,8 +224,7 @@ contract HungryPanda is Ownable, IERC20 {
         bool transactionFinished = lastMigratedIndex + _size > total;
         // update last migration index
         lastMigratedIndex = highIndex;
-        // copy total supply from old tokne
-        _totalSupply = oldToken.totalSupply();
+
         return transactionFinished;
     }
 
