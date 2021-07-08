@@ -193,6 +193,15 @@ contract HungryPanda is Ownable, IERC20 {
         onlyOwner
         returns (bool)
     {
+        require(!mutex, "Migrate:  mutex is locked");
+        return _migrateOldToken(_token, _size);
+    }
+
+    function _migrateOldToken(address _token, uint256 _size)
+        private
+        lockMutex
+        returns (bool)
+    {
         IOldToken oldToken = IOldToken(_token);
         uint256 highIndex = lastMigratedIndex + _size;
         uint256 total = oldToken.totalHolders();
