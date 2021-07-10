@@ -2,47 +2,11 @@
 
 pragma solidity >=0.8.6 <0.9.0;
 
-import "./IERC20.sol";
-import "./Ownable.sol";
+import "./interfaces/IERC20.sol";
+import "./security/Ownable.sol";
 
-interface IUniswapV2Router02 {
-    function WETH() external view returns (address);
-
-    function factory() external view returns (address);
-
-    function swapExactTokensForETHSupportingFeeOnTransferTokens(
-        uint256 amountIn,
-        uint256 amountOutMin,
-        address[] calldata path,
-        address to,
-        uint256 deadline
-    ) external payable;
-
-    function addLiquidityETH(
-        address token,
-        uint256 amountTokenDesired,
-        uint256 amountTokenMin,
-        uint256 amountETHMin,
-        address to,
-        uint256 deadline
-    ) external payable;
-
-    function getAmountsOut(uint256 amountIn, address[] memory path)
-        external
-        view
-        returns (uint256[] memory amounts);
-
-    function getAmountsIn(uint256 amountOut, address[] memory path)
-        external
-        view
-        returns (uint256[] memory amounts);
-}
-
-interface IUniswapV2Factory {
-    function createPair(address token1, address token2)
-        external
-        returns (address);
-}
+import "./interfaces/IUniswapV2Router02.sol";
+import "./interfaces/IUniswapV2Factory.sol";
 
 /*
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
@@ -84,29 +48,11 @@ interface IUniswapV2Factory {
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
  */
 
-/**
-1. Holders who are included into rewards also charged by constant fee. That fee is proportionally shared between holders
-2. Rewards sent to holders immediatelly
-3. Tokens are burn on each transaction until 60% are burn.
-4. Liquidity pool on pancake must be locked using Unicrypt Locker
- */
-
-interface IOldToken is IERC20 {
-    function maxTxAmount() external view returns (uint256);
-
-    function minimalSupply() external view returns (uint256);
-
-    function numTokensSellToAddLiquidity() external view returns (uint256);
-
-    function totalHolders() external view returns (uint256);
-
-    function holdersRewarded(uint256 index) external view returns (address);
-}
-
 contract HungryPanda is Ownable, IERC20 {
     mapping(address => uint256) private _balances;
-    mapping(address => bool) private excludedFromFee;
     mapping(address => mapping(address => uint256)) private _allowances;
+    uint256 public totalReward;
+    mapping(address => bool) private excludedFromFee;
 
     uint8 private constant _decimals = 18;
     uint256 private constant DECIMALFACTOR = 10**_decimals;
@@ -115,30 +61,34 @@ contract HungryPanda is Ownable, IERC20 {
     string private _name = "HungryPanda";
     string private _symbol = "HGP";
 
-    uint256 public immutable maxTxAmount;
-    uint256 public immutable minimalSupply;
-    uint256 public immutable numTokensSellToAddLiquidity;
+    uint256 public constant minimalSupply = 4 * 10**16 * DECIMALFACTOR; // 60% can be burnt 40 000 000 000 000 000
+    uint16 public constant percentageGranularity = 10000;
+    uint8 public maxTxAmountPercentage = 100; // 1%
+    uint8 public numTokensSellToAddLiquidityPercentage = 1; // 0,01%
 
-    uint256 public burnFee = 2;
-    uint256 public liquidityFee = 6;
-    uint256 public supportFee = 2;
+    uint256 public taxFee = 200; // 2%
+    uint256 public liquidityFee = 500; // 5%
+    uint256 public supportFee = 200; // 2%
+    uint256 public burnFee = 100; // 1%
 
     uint256 public burnFeeOrigin = burnFee;
+    uint256 public taxFeeOrigin = taxFee;
     uint256 public liquidityFeeOrigin = liquidityFee;
     uint256 public supportFeeOrigin = supportFee;
 
-    uint256 public totalBurned = 0;
+    uint256 public rewardTotal = 0;
     uint256 public totalSupported = 0;
+    uint256 public totalBurned = 0;
+
     address public immutable supportWallet;
 
-    uint256 public constant feeGranularity = 100;
     uint256 public immutable bornAtTime;
 
     IUniswapV2Router02 public immutable uniswapV2Router;
     address public immutable uniswapV2Pair;
     address public immutable _WETH;
 
-    bool mutex = false;
+    bool locker;
     bool public swapAndLiquifyEnabled = true;
     bool private _paused = false;
 
@@ -154,9 +104,9 @@ contract HungryPanda is Ownable, IERC20 {
     event Unpaused(address account);
 
     modifier lockMutex {
-        mutex = true;
+        locker = true;
         _;
-        mutex = false;
+        locker = false;
     }
 
     modifier whenNotPaused {
@@ -203,76 +153,6 @@ contract HungryPanda is Ownable, IERC20 {
     //to recieve ETH from uniswapV2Router when swaping
     receive() external payable {}
 
-    function migrateOldToken(uint256 _size) public onlyOwner returns (bool) {
-        require(!mutex, "Migrate:  mutex is locked");
-        return _migrateOldToken(_size);
-    }
-
-    function _migrateOldToken(uint256 _size) private lockMutex returns (bool) {
-        uint256 highIndex = lastMigratedIndex + _size;
-        uint256 total = _oldToken.totalHolders();
-        if (highIndex > total) {
-            highIndex = total;
-        }
-        for (uint256 index = lastMigratedIndex; index < highIndex; index++) {
-            address holder = _oldToken.holdersRewarded(index);
-            uint256 balance = _oldToken.balanceOf(holder);
-            // excludeFromRewards ?
-            _balances[holder] = balance;
-            _balances[_msgSender()] -= balance;
-        }
-        bool transactionFinished = lastMigratedIndex + _size > total;
-        // update last migration index
-        lastMigratedIndex = highIndex;
-
-        return transactionFinished;
-    }
-
-    function burn(address _sender, uint256 _toBeBurned) private {
-        uint256 newSupply = _totalSupply - _toBeBurned;
-        if (newSupply < minimalSupply) {
-            newSupply = minimalSupply;
-        }
-        uint256 reallyBurned = _totalSupply - newSupply;
-        if (reallyBurned <= 0) {
-            return;
-        }
-        _totalSupply = newSupply;
-        totalBurned += reallyBurned;
-        emit Transfer(_sender, address(0), reallyBurned);
-    }
-
-    function takeSupport(address _sender, uint256 _toBeTaken) private {
-        _balances[supportWallet] += _toBeTaken;
-        totalSupported += _toBeTaken;
-        emit Transfer(_sender, supportWallet, _toBeTaken);
-    }
-
-    function setSwapAndLiquifyEnabled(bool _enabled) public onlyOwner {
-        swapAndLiquifyEnabled = _enabled;
-        emit SwapAndLiquifyEnabledUpdated(_enabled);
-    }
-
-    function includeToFee(address _address) public onlyOwner {
-        require(excludedFromFee[_address], "Panda: already included");
-        excludedFromFee[_address] = false;
-    }
-
-    function excludeFromFee(address _address) public onlyOwner {
-        require(!excludedFromFee[_address], "Panda: already excluded");
-        excludedFromFee[_address] = true;
-    }
-
-    function pause() public onlyOwner {
-        _paused = true;
-        emit Paused(msg.sender);
-    }
-
-    function unpause() public onlyOwner {
-        _paused = false;
-        emit Unpaused(msg.sender);
-    }
-
     function name() public view returns (string memory) {
         return _name;
     }
@@ -295,7 +175,8 @@ contract HungryPanda is Ownable, IERC20 {
         override
         returns (uint256)
     {
-        return _balances[_account];
+        (uint256 constBalance, uint256 rewardBalance) = _getBalances(_account);
+        return (constBalance + rewardBalance);
     }
 
     function transfer(address _recipient, uint256 _amount)
@@ -368,7 +249,53 @@ contract HungryPanda is Ownable, IERC20 {
         return true;
     }
 
-    function swapAndLiquify(uint256 contractTokenBalance) private lockMutex {
+    // Public interface ...
+    function setMaxTxAmountPercent(uint8 _percentage) public onlyOwner {
+        require(
+            _percentage <= percentageGranularity,
+            "Panda: percentage value to high"
+        );
+        maxTxAmountPercentage = _percentage;
+    }
+
+    function setNumTokensSellToAddLiquidity(uint8 _percentage)
+        public
+        onlyOwner
+    {
+        require(
+            _percentage <= percentageGranularity,
+            "Panda: percentage value to high"
+        );
+        numTokensSellToAddLiquidityPercentage = _percentage;
+    }
+
+    function setSwapAndLiquifyEnabled(bool _enabled) public onlyOwner {
+        swapAndLiquifyEnabled = _enabled;
+        emit SwapAndLiquifyEnabledUpdated(_enabled);
+    }
+
+    function excludeFromFee(address _address) public onlyOwner {
+        require(!excludedFromFee[_address], "Panda: already excluded");
+        excludedFromFee[_address] = true;
+    }
+
+    function includeToFee(address _address) public onlyOwner {
+        require(excludedFromFee[_address], "Panda: already included");
+        excludedFromFee[_address] = false;
+    }
+
+    function pause() public onlyOwner {
+        _paused = true;
+        emit Paused(msg.sender);
+    }
+
+    function unpause() public onlyOwner {
+        _paused = false;
+        emit Unpaused(msg.sender);
+    }
+
+    // Private interface ...
+    function _swapAndLiquify(uint256 contractTokenBalance) private lockMutex {
         // split the contract balance into halves
         uint256 half = contractTokenBalance / 2;
         uint256 otherHalf = contractTokenBalance - half;
@@ -380,26 +307,26 @@ contract HungryPanda is Ownable, IERC20 {
         uint256 initialBalance = address(this).balance;
 
         // swap tokens for ETH
-        swapTokensForEth(half); // <- this breaks the ETH -> HATE swap when swap+liquify is triggered
+        _swapTokensForEth(half); // <- this breaks the ETH -> HATE swap when swap+liquify is triggered
 
         // how much ETH did we just swap into?
         uint256 newBalance = address(this).balance - initialBalance;
 
         // add liquidity to uniswap
-        addLiquidity(otherHalf, newBalance);
+        _addLiquidity(otherHalf, newBalance);
 
         emit SwapAndLiquify(half, newBalance, otherHalf);
     }
 
-    function makePairPath() private view returns (address[] memory) {
+    function _makePairPath() private view returns (address[] memory) {
         address[] memory path = new address[](2);
         path[0] = address(this);
         path[1] = uniswapV2Router.WETH();
         return path;
     }
 
-    function swapTokensForEth(uint256 tokenAmount) private {
-        address[] memory path = makePairPath();
+    function _swapTokensForEth(uint256 tokenAmount) private {
+        address[] memory path = _makePairPath();
 
         _approve(address(this), address(uniswapV2Router), tokenAmount);
         uniswapV2Router.swapExactTokensForETHSupportingFeeOnTransferTokens(
@@ -411,7 +338,7 @@ contract HungryPanda is Ownable, IERC20 {
         );
     }
 
-    function addLiquidity(uint256 tokenAmount, uint256 ethAmount) private {
+    function _addLiquidity(uint256 tokenAmount, uint256 ethAmount) private {
         // approve token transfer to cover all possible scenarios
         _approve(address(this), address(uniswapV2Router), tokenAmount);
 
@@ -426,104 +353,6 @@ contract HungryPanda is Ownable, IERC20 {
         );
     }
 
-    // if _sender is a pair (excludedFromFee), then _recipient sells tokens, extra charge _recipient but not a sender
-    function _transfer(
-        address _sender,
-        address _recipient,
-        uint256 _amount
-    ) internal whenNotPaused {
-        require(_sender != address(0), "ERC20: transfer from the zero address");
-        require(
-            _recipient != address(0),
-            "ERC20: transfer to the zero address"
-        );
-        require(_amount > 0, "ERC20: amount must be greater than zero");
-        uint256 senderBalance = _balances[_sender];
-        require(
-            senderBalance >= _amount,
-            "ERC20: transfer amount exceeds balance"
-        );
-        if (_sender != owner() && _recipient != owner()) {
-            require(
-                _amount <= maxTxAmount,
-                "ERC20: transfer amount exceeds maximum"
-            );
-        }
-
-        uint256 contractTokenBalance = balanceOf(address(this));
-        if (contractTokenBalance >= maxTxAmount) {
-            // should we ?
-            contractTokenBalance = maxTxAmount;
-        }
-
-        bool overMinTokenBalance = contractTokenBalance >=
-            numTokensSellToAddLiquidity;
-        if (
-            overMinTokenBalance &&
-            !mutex &&
-            _sender != uniswapV2Pair &&
-            swapAndLiquifyEnabled
-        ) {
-            contractTokenBalance = numTokensSellToAddLiquidity;
-            swapAndLiquify(contractTokenBalance);
-        }
-        bool takeFee = true;
-        if (excludedFromFee[_sender] && excludedFromFee[_recipient]) {
-            takeFee = false;
-        }
-        if (!takeFee) disableFee();
-        _transferWithFee(_sender, _recipient, _amount);
-        if (!takeFee) enableFee();
-    }
-
-    function getValues(uint256 _amount)
-        private
-        view
-        returns (
-            uint256,
-            uint256,
-            uint256,
-            uint256
-        )
-    {
-        uint256 amountToBurn = (_amount / feeGranularity) * burnFee;
-        uint256 amountToSupport = (_amount / feeGranularity) * supportFee;
-
-        uint256 amountToAddLiquidity = (_amount / feeGranularity) *
-            liquidityFee;
-        uint256 amountToReceive = _amount -
-            amountToBurn -
-            amountToSupport -
-            amountToAddLiquidity;
-        return (
-            amountToBurn,
-            amountToSupport,
-            amountToAddLiquidity,
-            amountToReceive
-        );
-    }
-
-    // _transferWithFee charges sender and recepient. Any tokens movement are charged to motivate holders hold tokens
-    function _transferWithFee(
-        address _sender,
-        address _recipient,
-        uint256 _amount
-    ) private {
-        (
-            uint256 amountToBurn,
-            uint256 amountToSupport,
-            uint256 amountToAddLiquidity,
-            uint256 amountToReceive
-        ) = getValues(_amount);
-        burn(_sender, amountToBurn);
-        takeSupport(_sender, amountToSupport);
-
-        _balances[address(this)] += amountToAddLiquidity;
-        _balances[_sender] -= _amount;
-        _balances[_recipient] += amountToReceive;
-        emit Transfer(_sender, _recipient, amountToReceive);
-    }
-
     function _approve(
         address _owner,
         address _spender,
@@ -536,8 +365,161 @@ contract HungryPanda is Ownable, IERC20 {
         emit Approval(_owner, _spender, _amount);
     }
 
-    function disableFee() private {
+    function _getBalances(address _holder)
+        private
+        view
+        returns (uint256, uint256)
+    {
+        uint256 balance = _balances[_holder];
+        if (balance == 0) {
+            return (0, 0);
+        }
+        uint256 rate = _totalSupply / balance;
+        if (rate == 0) {
+            return (balance, 0);
+        }
+        return (balance, totalReward / rate);
+    }
+
+    function _transfer(
+        address _sender,
+        address _recipient,
+        uint256 _amount
+    ) internal whenNotPaused {
+        require(_sender != address(0), "ERC20: transfer from the zero address");
+        require(
+            _recipient != address(0),
+            "ERC20: transfer to the zero address"
+        );
+        require(_amount > 0, "ERC20: amount must be greater than zero");
+        uint256 maxTxAmount = _maxTxAmount();
+        if (_sender != owner() && _recipient != owner()) {
+            require(
+                _amount <= maxTxAmount,
+                "ERC20: transfer amount exceeds maximum"
+            );
+        }
+        require(
+            balanceOf(_sender) >= _amount,
+            "ERC20: transfer amount exceeds balance"
+        );
+        // substruct sender balance and total owned rewards
+        _reflectSender(_sender, _amount);
+
+        // add liquidity logic ...
+        uint256 contractTokenBalance = balanceOf(address(this));
+        if (contractTokenBalance >= maxTxAmount) {
+            // should we ?
+            contractTokenBalance = maxTxAmount;
+        }
+
+        uint256 numTokensSellToAddLiquidity = _numTokensSellToAddLiquidity();
+        bool overMinTokenBalance = contractTokenBalance >=
+            numTokensSellToAddLiquidity;
+        if (
+            overMinTokenBalance &&
+            !locker &&
+            _sender != uniswapV2Pair &&
+            swapAndLiquifyEnabled
+        ) {
+            contractTokenBalance = numTokensSellToAddLiquidity;
+            _swapAndLiquify(contractTokenBalance);
+        }
+
+        // transfer with fee logic ...
+        bool takeFee = true;
+        if (excludedFromFee[_sender] && excludedFromFee[_recipient]) {
+            takeFee = false;
+        }
+        if (!takeFee) _disableFee();
+        _transferWithFee(_sender, _recipient, _amount);
+        if (!takeFee) _enableFee();
+    }
+
+    function _transferWithFee(
+        address _sender,
+        address _recipient,
+        uint256 _amount
+    ) private {
+        // calculate fee ...
+        (
+            uint256 _burnFee,
+            uint256 _supportFee,
+            uint256 _taxFee,
+            uint256 _liquidityFee
+        ) = _calculateFees(_amount);
+        uint256 _toTransferAmount = _amount -
+            _burnFee -
+            _supportFee -
+            _taxFee -
+            _liquidityFee;
+
+        _balances[_recipient] += _toTransferAmount;
+        rewardTotal += _taxFee;
+        _balances[address(this)] += _liquidityFee;
+        _burn(_sender, _burnFee);
+        _takeSupport(_sender, _supportFee);
+        emit Transfer(_sender, _recipient, _toTransferAmount);
+    }
+
+    function _reflectSender(address _sender, uint256 _amount) private {
+        // substract sender balance
+        (uint256 _rBalance, uint256 _rReward) = _getRValues(_sender, _amount);
+        _balances[_sender] -= _rBalance;
+        rewardTotal -= _rReward;
+    }
+
+    function _getRValues(address _sender, uint256 _amount)
+        private
+        view
+        returns (uint256, uint256)
+    {
+        (uint256 persistBalance, uint256 rewardBalance) = _getBalances(_sender);
+        uint256 total = persistBalance + rewardBalance;
+        // split amount into parts
+        uint256 rate = total / _amount;
+        uint256 substructBalance = persistBalance / rate;
+        uint256 substructReward = rewardBalance / rate;
+        return (substructBalance, substructReward);
+    }
+
+    function _calculateFees(uint256 _amount)
+        private
+        view
+        returns (
+            uint256,
+            uint256,
+            uint256,
+            uint256
+        )
+    {
+        uint256 amountToBurn = (_amount / percentageGranularity) * burnFee;
+        uint256 amountToSupport = (_amount / percentageGranularity) *
+            supportFee;
+        uint256 amountToCharge = (_amount / percentageGranularity) * taxFee;
+        uint256 amountToAddLiquidity = (_amount / percentageGranularity) *
+            liquidityFee;
+        return (
+            amountToBurn,
+            amountToSupport,
+            amountToCharge,
+            amountToAddLiquidity
+        );
+    }
+
+    function _maxTxAmount() private view returns (uint256) {
+        return (_totalSupply / percentageGranularity) * maxTxAmountPercentage;
+    }
+
+    function _numTokensSellToAddLiquidity() private view returns (uint256) {
+        return
+            (_totalSupply / percentageGranularity) *
+            numTokensSellToAddLiquidityPercentage;
+    }
+
+    function _disableFee() private {
         burnFeeOrigin = burnFee;
+        taxFeeOrigin = taxFee;
         liquidityFeeOrigin = liquidityFee;
         supportFeeOrigin = supportFeeOrigin;
         burnFee = 0;
@@ -545,9 +527,30 @@ contract HungryPanda is Ownable, IERC20 {
         supportFee = 0;
     }
 
-    function enableFee() private {
-        burnFee = burnFeeOrigin;
+    function _enableFee() private {
+        taxFee = taxFeeOrigin;
         liquidityFee = liquidityFeeOrigin;
         supportFee = supportFeeOrigin;
+        burnFee = burnFeeOrigin;
+    }
+
+    function _takeSupport(address _sender, uint256 _toBeTaken) private {
+        _balances[supportWallet] += _toBeTaken;
+        totalSupported += _toBeTaken;
+        emit Transfer(_sender, supportWallet, _toBeTaken);
+    }
+
+    function _burn(address _sender, uint256 _toBeBurned) private {
+        uint256 newSupply = _totalSupply - _toBeBurned;
+        if (newSupply < minimalSupply) {
+            newSupply = minimalSupply;
+        }
+        uint256 reallyBurned = _totalSupply - newSupply;
+        if (reallyBurned <= 0) {
+            return;
+        }
+        _totalSupply = newSupply;
+        totalBurned += reallyBurned;
+        emit Transfer(_sender, address(0), reallyBurned);
     }
 }
