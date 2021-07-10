@@ -56,7 +56,7 @@ contract HungryPanda is Ownable, IERC20 {
 
     uint8 private constant _decimals = 18;
     uint256 private constant DECIMALFACTOR = 10**_decimals;
-    uint256 private _totalSupply = 10**17 * DECIMALFACTOR; // 100 000 000 000 000 000
+    uint256 private _totalSupply = 10**17 * DECIMALFACTOR;
 
     string private _name = "HungryPanda";
     string private _symbol = "HGP";
@@ -66,7 +66,7 @@ contract HungryPanda is Ownable, IERC20 {
     uint8 public maxTxAmountPercentage = 100; // 1%
     uint8 public numTokensSellToAddLiquidityPercentage = 1; // 0,01%
 
-    uint256 public taxFee = 300; // 3%
+    uint256 public taxFee = 200; // 2%
     uint256 public liquidityFee = 500; // 5%
     uint256 public supportFee = 200; // 2%
 

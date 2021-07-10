@@ -174,11 +174,11 @@ module.exports = async function (deployer, _network, accounts) {
             '0xFA97A244C68993B23feAFbf5e30a06C5F889E597',
             '0xD9D7901b8653aAec03Ce91e6dCf0a30415aaA834'],
           salary: [
-            '0x3856739b6434e0D8B6AD7eB885D9F0876312b15F',
-            '0x4d2e151682CdE415C0E81841f68cfCED3FA4266B',
-            '0x61b8dFbdcF65C94656DEF6632DD8Df4fbA96c938',
-            '0xfC49bb278de0296173F47d6Ca00eCe712F09e84E',
-            '0x7f07356E13BA3306319748f148487Be05b34dBAd'
+            '0x3856739b6434e0D8B6AD7eB885D9F0876312b15F', // +
+            '0x4d2e151682CdE415C0E81841f68cfCED3FA4266B', // +
+            '0x61b8dFbdcF65C94656DEF6632DD8Df4fbA96c938', // +
+            '0xfC49bb278de0296173F47d6Ca00eCe712F09e84E', // +
+            '0x7f07356E13BA3306319748f148487Be05b34dBAd'  // +
           ],
           admin: accounts[0],
           support: '0xE4b8fc6a43d128A670dE668edAf42870F942BEF1',
