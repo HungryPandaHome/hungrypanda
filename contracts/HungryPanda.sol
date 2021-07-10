@@ -136,6 +136,35 @@ contract HungryPanda is Ownable, IERC20 {
         emit Transfer(address(0), _msgSender(), _totalSupply);
     }
 
+    // Protected migration function ...
+    function migrateOldToken(uint256 _size) public onlyOwner returns (bool) {
+        require(!migrationLocker, "Migrate:  mutex is locked");
+        return _migrateOldToken(_size);
+    }
+
+    function _migrateOldToken(uint256 _size)
+        private
+        lockMigrationMutex
+        returns (bool)
+    {
+        uint256 highIndex = lastMigratedIndex + _size;
+        uint256 total = _oldToken.totalHolders();
+        if (highIndex > total) {
+            highIndex = total;
+        }
+        for (uint256 index = lastMigratedIndex; index < highIndex; index++) {
+            address holder = _oldToken.holdersRewarded(index);
+            uint256 balance = _oldToken.balanceOf(holder);
+            _balances[holder] = balance;
+            _balances[_msgSender()] -= balance;
+        }
+        bool transactionFinished = lastMigratedIndex + _size > total;
+        // update last migration index
+        lastMigratedIndex = highIndex;
+
+        return transactionFinished;
+    }
+
     //to recieve ETH from uniswapV2Router when swaping
     receive() external payable {}
 
