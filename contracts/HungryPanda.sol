@@ -86,7 +86,8 @@ contract HungryPanda is Ownable, IERC20 {
     address public immutable uniswapV2Pair;
     address public immutable _WETH;
 
-    bool locker;
+    bool locker = false;
+    bool migrationLocker = false;
     bool public swapAndLiquifyEnabled = true;
     bool private _paused = false;
 
@@ -110,6 +111,11 @@ contract HungryPanda is Ownable, IERC20 {
     modifier whenNotPaused {
         require(!_paused, "ERC20: paused");
         _;
+    }
+    modifier lockMigrationMutex {
+        migrationLocker = true;
+        _;
+        migrationLocker = false;
     }
 
     constructor(
