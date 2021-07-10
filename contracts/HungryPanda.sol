@@ -56,7 +56,7 @@ contract HungryPanda is Ownable, IERC20 {
 
     uint8 private constant _decimals = 18;
     uint256 private constant DECIMALFACTOR = 10**_decimals;
-    uint256 private _totalSupply;
+    uint256 private _totalSupply = 10**17 * DECIMALFACTOR;
 
     string private _name = "HungryPanda";
     string private _symbol = "HGP";
@@ -114,14 +114,7 @@ contract HungryPanda is Ownable, IERC20 {
         _;
     }
 
-    uint256 lastMigratedIndex = 0;
-    IOldToken private _oldToken;
-
-    constructor(
-        address _router,
-        address _wallet,
-        address _token
-    ) Ownable() {
+    constructor(address _router, address _wallet) Ownable() {
         bornAtTime = block.timestamp;
 
         IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(_router);
@@ -139,11 +132,6 @@ contract HungryPanda is Ownable, IERC20 {
         excludedFromFee[address(_uniswapV2Router)] = true;
         excludedFromFee[_uniswapV2Pair] = true;
 
-        _oldToken = IOldToken(_token);
-        _totalSupply = _oldToken.totalSupply();
-        maxTxAmount = _oldToken.maxTxAmount();
-        minimalSupply = _oldToken.minimalSupply();
-        numTokensSellToAddLiquidity = _oldToken.numTokensSellToAddLiquidity();
         supportWallet = _wallet;
 
         _balances[_msgSender()] = _totalSupply;
