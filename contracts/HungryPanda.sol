@@ -8,6 +8,8 @@ import "./security/Ownable.sol";
 import "./interfaces/IUniswapV2Router02.sol";
 import "./interfaces/IUniswapV2Factory.sol";
 
+import "./interfaces/IMigrateToken.sol";
+
 /*
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%,.............,&@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
@@ -108,15 +110,19 @@ contract HungryPanda is Ownable, IERC20 {
         locker = false;
     }
 
-    modifier whenNotPaused {
-        require(!_paused, "ERC20: paused");
-        _;
-    }
     modifier lockMigrationMutex {
         migrationLocker = true;
         _;
         migrationLocker = false;
     }
+
+    modifier whenNotPaused {
+        require(!_paused, "ERC20: paused");
+        _;
+    }
+
+    IMigrateToken _oldToken;
+    uint256 private lastMigratedIndex;
 
     constructor(
         address _router,
