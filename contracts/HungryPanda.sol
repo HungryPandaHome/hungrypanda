@@ -409,6 +409,9 @@ contract HungryPanda is Ownable, IERC20 {
         if (balance == 0) {
             return (0, 0);
         }
+        if (excludedFromFee[_holder]) {
+            return (balance, 0);
+        }
         uint256 rate = _totalSupply / balance;
         if (rate == 0) {
             return (balance, 0);
