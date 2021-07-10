@@ -66,12 +66,10 @@ contract HungryPanda is Ownable, IERC20 {
     uint8 public maxTxAmountPercentage = 100; // 1%
     uint8 public numTokensSellToAddLiquidityPercentage = 1; // 0,01%
 
-    uint256 public taxFee = 200; // 2%
-    uint256 public liquidityFee = 400; // 4%
+    uint256 public taxFee = 300; // 3%
+    uint256 public liquidityFee = 500; // 5%
     uint256 public supportFee = 200; // 2%
-    uint256 public burnFee = 100; // 1%
 
-    uint256 public burnFeeOrigin = burnFee;
     uint256 public taxFeeOrigin = taxFee;
     uint256 public liquidityFeeOrigin = liquidityFee;
     uint256 public supportFeeOrigin = supportFee;
@@ -431,13 +429,11 @@ contract HungryPanda is Ownable, IERC20 {
     ) private {
         // calculate fee ...
         (
-            uint256 _burnFee,
             uint256 _supportFee,
             uint256 _taxFee,
             uint256 _liquidityFee
         ) = _calculateFees(_amount);
         uint256 _toTransferAmount = _amount -
-            _burnFee -
             _supportFee -
             _taxFee -
             _liquidityFee;
@@ -445,7 +441,7 @@ contract HungryPanda is Ownable, IERC20 {
         _balances[_recipient] += _toTransferAmount;
         rewardTotal += _taxFee;
         _balances[address(this)] += _liquidityFee;
-        _burn(_sender, _burnFee);
+
         _takeSupport(_sender, _supportFee);
         emit Transfer(_sender, _recipient, _toTransferAmount);
     }
@@ -477,22 +473,15 @@ contract HungryPanda is Ownable, IERC20 {
         returns (
             uint256,
             uint256,
-            uint256,
             uint256
         )
     {
-        uint256 amountToBurn = (_amount / percentageGranularity) * burnFee;
         uint256 amountToSupport = (_amount / percentageGranularity) *
             supportFee;
         uint256 amountToCharge = (_amount / percentageGranularity) * taxFee;
         uint256 amountToAddLiquidity = (_amount / percentageGranularity) *
             liquidityFee;
-        return (
-            amountToBurn,
-            amountToSupport,
-            amountToCharge,
-            amountToAddLiquidity
-        );
+        return (amountToSupport, amountToCharge, amountToAddLiquidity);
     }
 
     function _maxTxAmount() private view returns (uint256) {
@@ -506,12 +495,10 @@ contract HungryPanda is Ownable, IERC20 {
     }
 
     function _disableFee() private {
-        burnFeeOrigin = burnFee;
         taxFeeOrigin = taxFee;
         liquidityFeeOrigin = liquidityFee;
         supportFeeOrigin = supportFeeOrigin;
         taxFee = 0;
-        burnFee = 0;
         liquidityFee = 0;
         supportFee = 0;
     }
@@ -520,26 +507,11 @@ contract HungryPanda is Ownable, IERC20 {
         taxFee = taxFeeOrigin;
         liquidityFee = liquidityFeeOrigin;
         supportFee = supportFeeOrigin;
-        burnFee = burnFeeOrigin;
     }
 
     function _takeSupport(address _sender, uint256 _toBeTaken) private {
         _balances[supportWallet] += _toBeTaken;
         totalSupported += _toBeTaken;
         emit Transfer(_sender, supportWallet, _toBeTaken);
-    }
-
-    function _burn(address _sender, uint256 _toBeBurned) private {
-        uint256 newSupply = _totalSupply - _toBeBurned;
-        if (newSupply < minimalSupply) {
-            newSupply = minimalSupply;
-        }
-        uint256 reallyBurned = _totalSupply - newSupply;
-        if (reallyBurned <= 0) {
-            return;
-        }
-        _totalSupply = newSupply;
-        totalBurned += reallyBurned;
-        emit Transfer(_sender, address(0), reallyBurned);
     }
 }
