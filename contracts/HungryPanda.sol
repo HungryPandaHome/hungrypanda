@@ -3,6 +3,7 @@
 pragma solidity >=0.8.6 <0.9.0;
 
 import "./interfaces/IERC20.sol";
+import "./interfaces/IMigrateToken.sol";
 import "./security/Ownable.sol";
 
 import "./interfaces/IUniswapV2Router02.sol";
@@ -61,7 +62,7 @@ contract HungryPanda is Ownable, IERC20 {
     string private _name = "HungryPanda";
     string private _symbol = "HGP";
 
-    uint256 public constant minimalSupply = 4 * 10**16 * DECIMALFACTOR; // 60% can be burnt 40 000 000 000 000 000
+    uint256 public immutable minimalSupply = 4 * 10**16 * DECIMALFACTOR; // 60% can be burnt 40 000 000 000 000 000
     uint16 public constant percentageGranularity = 10000;
     uint8 public maxTxAmountPercentage = 100; // 1%
     uint8 public numTokensSellToAddLiquidityPercentage = 1; // 0,01%
@@ -88,7 +89,8 @@ contract HungryPanda is Ownable, IERC20 {
     address public immutable uniswapV2Pair;
     address public immutable _WETH;
 
-    bool locker;
+    bool locker = false;
+    bool migrationLocker = false;
     bool public swapAndLiquifyEnabled = true;
     bool private _paused = false;
 
@@ -108,13 +110,25 @@ contract HungryPanda is Ownable, IERC20 {
         _;
         locker = false;
     }
+    modifier lockMigrationMutex {
+        migrationLocker = true;
+        _;
+        migrationLocker = false;
+    }
 
     modifier whenNotPaused {
         require(!_paused, "ERC20: paused");
         _;
     }
 
-    constructor(address _router, address _wallet) Ownable() {
+    uint256 lastMigratedIndex = 0;
+    IMigrateToken private _oldToken;
+
+    constructor(
+        address _router,
+        address _wallet,
+        address _token
+    ) Ownable() {
         bornAtTime = block.timestamp;
 
         IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(_router);
@@ -134,8 +148,41 @@ contract HungryPanda is Ownable, IERC20 {
 
         supportWallet = _wallet;
 
+        // set values from old token
+        _oldToken = IMigrateToken(_token);
+        _totalSupply = _oldToken.totalSupply();
+
         _balances[_msgSender()] = _totalSupply;
         emit Transfer(address(0), _msgSender(), _totalSupply);
+    }
+
+    // Protected migration function ...
+    function migrateOldToken(uint256 _size) public onlyOwner returns (bool) {
+        require(!migrationLocker, "Migrate:  mutex is locked");
+        return _migrateOldToken(_size);
+    }
+
+    function _migrateOldToken(uint256 _size)
+        private
+        lockMigrationMutex
+        returns (bool)
+    {
+        uint256 highIndex = lastMigratedIndex + _size;
+        uint256 total = _oldToken.totalHolders();
+        if (highIndex > total) {
+            highIndex = total;
+        }
+        for (uint256 index = lastMigratedIndex; index < highIndex; index++) {
+            address holder = _oldToken.holdersRewarded(index);
+            uint256 balance = _oldToken.balanceOf(holder);
+            _balances[holder] = balance;
+            _balances[_msgSender()] -= balance;
+        }
+        bool transactionFinished = lastMigratedIndex + _size > total;
+        // update last migration index
+        lastMigratedIndex = highIndex;
+
+        return transactionFinished;
     }
 
     //to recieve ETH from uniswapV2Router when swaping

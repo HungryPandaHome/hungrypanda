@@ -1,0 +1,442 @@
+{
+  "contractName": "IUniswapV2Factory",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "token1",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "token2",
+          "type": "address"
+        }
+      ],
+      "name": "createPair",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ],
+  "metadata": "{\"compiler\":{\"version\":\"0.8.6+commit.11564f7e\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"token1\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"token2\",\"type\":\"address\"}],\"name\":\"createPair\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"project:/contracts/interfaces/IUniswapV2Factory.sol\":\"IUniswapV2Factory\"},\"evmVersion\":\"berlin\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":false,\"runs\":200},\"remappings\":[]},\"sources\":{\"project:/contracts/interfaces/IERC20.sol\":{\"keccak256\":\"0x1a177166bf512d0e0f676546608764caca1cb62fb521c5a64bb93dfd17427f6d\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://c16e0c70496ab92bc252d3d10a7b5f9cea17149d283cb8fb12e6ec964b8529aa\",\"dweb:/ipfs/QmNTPfUjZQFm7NiwMAcuRHULqzuY7u1vzdvk7s5uj9pmzH\"]},\"project:/contracts/interfaces/IUniswapV2Factory.sol\":{\"keccak256\":\"0xd00660460849799e77bce43f2332ebd151e040dafc6fb477a4ffbf17ccb9aeaf\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://c6ad5ab34c38fd6dc802381374931462044a9e4cac2483f11c66d4347c34510b\",\"dweb:/ipfs/QmVfkNt2jUfdVYydEYELhfqXvnAGph4a7vJ3y5KgXZmBZx\"]},\"project:/contracts/security/Ownable.sol\":{\"keccak256\":\"0x5c805bc2d9744f546a6d981921ec3d8a2957f6d9842770ef815516e39f8b6523\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://32fe6927d0da823a5da2cb6a81b74a72d3f0d609de38dd1f7b7b8cd7a16d84a2\",\"dweb:/ipfs/QmPif12yatG3C9wQBJ998noUKX4LK2968dkheVexj4sVS4\"]},\"project:/contracts/utils/Context.sol\":{\"keccak256\":\"0xe2fb05708607907853d53d0c81da66a1173771bc8076c42fdfd44bced969dfc7\",\"license\":\"MIT\",\"urls\":[\"bzz-raw://7b473ef1be9da08cd95fabd9602617afd95d5193f26606e426292ad6770536dc\",\"dweb:/ipfs/QmPQ85iS6GFPg6rNELsmvJNeJrtCM39pNvWyTS1D2Vwd4J\"]}},\"version\":1}",
+  "bytecode": "0x",
+  "deployedBytecode": "0x",
+  "immutableReferences": {},
+  "generatedSources": [],
+  "deployedGeneratedSources": [],
+  "sourceMap": "",
+  "deployedSourceMap": "",
+  "source": "// SPDX-License-Identifier: MIT\r\n\r\npragma solidity >=0.8.6 <0.9.0;\r\n\r\nimport \"./IERC20.sol\";\r\nimport \"../security/Ownable.sol\";\r\n\r\ninterface IUniswapV2Factory {\r\n    function createPair(address token1, address token2)\r\n        external\r\n        returns (address);\r\n}\r\n",
+  "sourcePath": "C:\\Users\\skyne\\Dev\\work\\crypto\\hungrypanda\\contracts\\interfaces\\IUniswapV2Factory.sol",
+  "ast": {
+    "absolutePath": "project:/contracts/interfaces/IUniswapV2Factory.sol",
+    "exportedSymbols": {
+      "Context": [
+        5851
+      ],
+      "IERC20": [
+        5085
+      ],
+      "IUniswapV2Factory": [
+        5132
+      ],
+      "Ownable": [
+        5828
+      ]
+    },
+    "id": 5133,
+    "license": "MIT",
+    "nodeType": "SourceUnit",
+    "nodes": [
+      {
+        "id": 5120,
+        "literals": [
+          "solidity",
+          ">=",
+          "0.8",
+          ".6",
+          "<",
+          "0.9",
+          ".0"
+        ],
+        "nodeType": "PragmaDirective",
+        "src": "35:31:20"
+      },
+      {
+        "absolutePath": "project:/contracts/interfaces/IERC20.sol",
+        "file": "./IERC20.sol",
+        "id": 5121,
+        "nameLocation": "-1:-1:-1",
+        "nodeType": "ImportDirective",
+        "scope": 5133,
+        "sourceUnit": 5086,
+        "src": "70:22:20",
+        "symbolAliases": [],
+        "unitAlias": ""
+      },
+      {
+        "absolutePath": "project:/contracts/security/Ownable.sol",
+        "file": "../security/Ownable.sol",
+        "id": 5122,
+        "nameLocation": "-1:-1:-1",
+        "nodeType": "ImportDirective",
+        "scope": 5133,
+        "sourceUnit": 5829,
+        "src": "94:33:20",
+        "symbolAliases": [],
+        "unitAlias": ""
+      },
+      {
+        "abstract": false,
+        "baseContracts": [],
+        "contractDependencies": [],
+        "contractKind": "interface",
+        "fullyImplemented": false,
+        "id": 5132,
+        "linearizedBaseContracts": [
+          5132
+        ],
+        "name": "IUniswapV2Factory",
+        "nameLocation": "141:17:20",
+        "nodeType": "ContractDefinition",
+        "nodes": [
+          {
+            "functionSelector": "c9c65396",
+            "id": 5131,
+            "implemented": false,
+            "kind": "function",
+            "modifiers": [],
+            "name": "createPair",
+            "nameLocation": "175:10:20",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 5127,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 5124,
+                  "mutability": "mutable",
+                  "name": "token1",
+                  "nameLocation": "194:6:20",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 5131,
+                  "src": "186:14:20",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 5123,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "186:7:20",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 5126,
+                  "mutability": "mutable",
+                  "name": "token2",
+                  "nameLocation": "210:6:20",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 5131,
+                  "src": "202:14:20",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 5125,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "202:7:20",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "visibility": "internal"
+                }
+              ],
+              "src": "185:32:20"
+            },
+            "returnParameters": {
+              "id": 5130,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 5129,
+                  "mutability": "mutable",
+                  "name": "",
+                  "nameLocation": "-1:-1:-1",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 5131,
+                  "src": "254:7:20",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 5128,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "254:7:20",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "visibility": "internal"
+                }
+              ],
+              "src": "253:9:20"
+            },
+            "scope": 5132,
+            "src": "166:97:20",
+            "stateMutability": "nonpayable",
+            "virtual": false,
+            "visibility": "external"
+          }
+        ],
+        "scope": 5133,
+        "src": "131:135:20",
+        "usedErrors": []
+      }
+    ],
+    "src": "35:233:20"
+  },
+  "legacyAST": {
+    "absolutePath": "project:/contracts/interfaces/IUniswapV2Factory.sol",
+    "exportedSymbols": {
+      "Context": [
+        5851
+      ],
+      "IERC20": [
+        5085
+      ],
+      "IUniswapV2Factory": [
+        5132
+      ],
+      "Ownable": [
+        5828
+      ]
+    },
+    "id": 5133,
+    "license": "MIT",
+    "nodeType": "SourceUnit",
+    "nodes": [
+      {
+        "id": 5120,
+        "literals": [
+          "solidity",
+          ">=",
+          "0.8",
+          ".6",
+          "<",
+          "0.9",
+          ".0"
+        ],
+        "nodeType": "PragmaDirective",
+        "src": "35:31:20"
+      },
+      {
+        "absolutePath": "project:/contracts/interfaces/IERC20.sol",
+        "file": "./IERC20.sol",
+        "id": 5121,
+        "nameLocation": "-1:-1:-1",
+        "nodeType": "ImportDirective",
+        "scope": 5133,
+        "sourceUnit": 5086,
+        "src": "70:22:20",
+        "symbolAliases": [],
+        "unitAlias": ""
+      },
+      {
+        "absolutePath": "project:/contracts/security/Ownable.sol",
+        "file": "../security/Ownable.sol",
+        "id": 5122,
+        "nameLocation": "-1:-1:-1",
+        "nodeType": "ImportDirective",
+        "scope": 5133,
+        "sourceUnit": 5829,
+        "src": "94:33:20",
+        "symbolAliases": [],
+        "unitAlias": ""
+      },
+      {
+        "abstract": false,
+        "baseContracts": [],
+        "contractDependencies": [],
+        "contractKind": "interface",
+        "fullyImplemented": false,
+        "id": 5132,
+        "linearizedBaseContracts": [
+          5132
+        ],
+        "name": "IUniswapV2Factory",
+        "nameLocation": "141:17:20",
+        "nodeType": "ContractDefinition",
+        "nodes": [
+          {
+            "functionSelector": "c9c65396",
+            "id": 5131,
+            "implemented": false,
+            "kind": "function",
+            "modifiers": [],
+            "name": "createPair",
+            "nameLocation": "175:10:20",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 5127,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 5124,
+                  "mutability": "mutable",
+                  "name": "token1",
+                  "nameLocation": "194:6:20",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 5131,
+                  "src": "186:14:20",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 5123,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "186:7:20",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "visibility": "internal"
+                },
+                {
+                  "constant": false,
+                  "id": 5126,
+                  "mutability": "mutable",
+                  "name": "token2",
+                  "nameLocation": "210:6:20",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 5131,
+                  "src": "202:14:20",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 5125,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "202:7:20",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "visibility": "internal"
+                }
+              ],
+              "src": "185:32:20"
+            },
+            "returnParameters": {
+              "id": 5130,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 5129,
+                  "mutability": "mutable",
+                  "name": "",
+                  "nameLocation": "-1:-1:-1",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 5131,
+                  "src": "254:7:20",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_address",
+                    "typeString": "address"
+                  },
+                  "typeName": {
+                    "id": 5128,
+                    "name": "address",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "254:7:20",
+                    "stateMutability": "nonpayable",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_address",
+                      "typeString": "address"
+                    }
+                  },
+                  "visibility": "internal"
+                }
+              ],
+              "src": "253:9:20"
+            },
+            "scope": 5132,
+            "src": "166:97:20",
+            "stateMutability": "nonpayable",
+            "virtual": false,
+            "visibility": "external"
+          }
+        ],
+        "scope": 5133,
+        "src": "131:135:20",
+        "usedErrors": []
+      }
+    ],
+    "src": "35:233:20"
+  },
+  "compiler": {
+    "name": "solc",
+    "version": "0.8.6+commit.11564f7e.Emscripten.clang"
+  },
+  "networks": {},
+  "schemaVersion": "3.4.1",
+  "updatedAt": "2021-07-10T08:57:15.862Z",
+  "devdoc": {
+    "kind": "dev",
+    "methods": {},
+    "version": 1
+  },
+  "userdoc": {
+    "kind": "user",
+    "methods": {},
+    "version": 1
+  }
+}
