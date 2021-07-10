@@ -67,7 +67,7 @@ contract HungryPanda is Ownable, IERC20 {
     uint8 public numTokensSellToAddLiquidityPercentage = 1; // 0,01%
 
     uint256 public taxFee = 200; // 2%
-    uint256 public liquidityFee = 400; // 4%
+    uint256 public liquidityFee = 500; // 5%
     uint256 public supportFee = 200; // 2%
     uint256 public burnFee = 100; // 1%
 
