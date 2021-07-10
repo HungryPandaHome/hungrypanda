@@ -112,7 +112,11 @@ contract HungryPanda is Ownable, IERC20 {
         _;
     }
 
-    constructor(address _router, address _wallet) Ownable() {
+    constructor(
+        address _router,
+        address _wallet,
+        address _token
+    ) Ownable() {
         bornAtTime = block.timestamp;
 
         IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(_router);
@@ -131,6 +135,10 @@ contract HungryPanda is Ownable, IERC20 {
         excludedFromFee[_uniswapV2Pair] = true;
 
         supportWallet = _wallet;
+
+        // set values from old token
+        _oldToken = IMigrateToken(_token);
+        _totalSupply = _oldToken.totalSupply();
 
         _balances[_msgSender()] = _totalSupply;
         emit Transfer(address(0), _msgSender(), _totalSupply);
