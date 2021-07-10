@@ -4,10 +4,10 @@ pragma solidity >=0.8.6 <0.9.0;
 
 import "../interfaces/IERC20.sol";
 import "../security/Ownable.sol";
-import "../interfaces/IUniswapV2Router.sol";
-import "../interfaces/IUniswapFactory.sol";
+import "../interfaces/IUniswapV2Router02.sol";
+import "../interfaces/IUniswapV2Factory.sol";
 
-contract HungryPanda is Ownable, IERC20 {
+contract HungryPandaOld is Ownable, IERC20 {
     mapping(address => uint256) private _balances;
     mapping(address => bool) private excludedFromFee;
     address[] public holdersRewarded;

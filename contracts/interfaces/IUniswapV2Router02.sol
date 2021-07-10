@@ -3,7 +3,7 @@
 pragma solidity >=0.8.6 <0.9.0;
 
 import "./IERC20.sol";
-import "../Ownable.sol";
+import "../security/Ownable.sol";
 
 interface IUniswapV2Router02 {
     function WETH() external view returns (address);

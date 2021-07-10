@@ -5,8 +5,8 @@ pragma solidity >=0.8.6 <0.9.0;
 import "./interfaces/IERC20.sol";
 import "./security/Ownable.sol";
 
-import "./interfaces/IUniswapV2Router.sol";
-import "./interfaces/IUniswapFactory.sol";
+import "./interfaces/IUniswapV2Router02.sol";
+import "./interfaces/IUniswapV2Factory.sol";
 
 /*
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
@@ -52,7 +52,7 @@ contract HungryPanda is Ownable, IERC20 {
     mapping(address => uint256) private _balances;
     mapping(address => mapping(address => uint256)) private _allowances;
     uint256 public totalReward;
-    mapping(address => bool) private excludedFromReward;
+    mapping(address => bool) private excludedFromFee;
 
     uint8 private constant _decimals = 18;
     uint256 private constant DECIMALFACTOR = 10**_decimals;
@@ -66,15 +66,20 @@ contract HungryPanda is Ownable, IERC20 {
     uint8 public maxTxAmountPercentage = 100; // 1%
     uint8 public numTokensSellToAddLiquidityPercentage = 1; // 0,01%
 
-    uint256 public taxFee = 400; // 4%
-    uint256 public liquidityFee = 500; // 5%
+    uint256 public taxFee = 200; // 2%
+    uint256 public liquidityFee = 400; // 4%
     uint256 public supportFee = 200; // 2%
+    uint256 public burnFee = 100; // 1%
+
+    uint256 public burnFeeOrigin = burnFee;
     uint256 public taxFeeOrigin = taxFee;
     uint256 public liquidityFeeOrigin = liquidityFee;
     uint256 public supportFeeOrigin = supportFee;
 
     uint256 public rewardTotal = 0;
     uint256 public totalSupported = 0;
+    uint256 public totalBurned = 0;
+
     address public immutable supportWallet;
 
     uint256 public immutable bornAtTime;
@@ -126,8 +131,6 @@ contract HungryPanda is Ownable, IERC20 {
         excludedFromFee[_msgSender()] = true;
         excludedFromFee[address(_uniswapV2Router)] = true;
         excludedFromFee[_uniswapV2Pair] = true;
-        // must be added explicitly ...
-        holdersRewarded.push(_msgSender());
 
         supportWallet = _wallet;
 
@@ -251,7 +254,7 @@ contract HungryPanda is Ownable, IERC20 {
             _percentage <= percentageGranularity,
             "Panda: percentage value to high"
         );
-        numTokensSellToAddLiquidity = _percentage;
+        numTokensSellToAddLiquidityPercentage = _percentage;
     }
 
     function setSwapAndLiquifyEnabled(bool _enabled) public onlyOwner {
@@ -311,7 +314,7 @@ contract HungryPanda is Ownable, IERC20 {
     }
 
     function _swapTokensForEth(uint256 tokenAmount) private {
-        address[] memory path = makePairPath();
+        address[] memory path = _makePairPath();
 
         _approve(address(this), address(uniswapV2Router), tokenAmount);
         uniswapV2Router.swapExactTokensForETHSupportingFeeOnTransferTokens(
@@ -384,10 +387,12 @@ contract HungryPanda is Ownable, IERC20 {
                 "ERC20: transfer amount exceeds maximum"
             );
         }
-
-        (uint256 persistBalance, uint256 rewardBalance) = _getBalances(_sender);
-        uint256 total = persistBalance + rewardBalance;
-        require(total >= _amount, "ERC20: transfer amount exceeds balance");
+        require(
+            balanceOf(_sender) >= _amount,
+            "ERC20: transfer amount exceeds balance"
+        );
+        // substruct sender balance and total owned rewards
+        _reflectSender(_sender, _amount);
 
         // add liquidity logic ...
         uint256 contractTokenBalance = balanceOf(address(this));
@@ -409,38 +414,61 @@ contract HungryPanda is Ownable, IERC20 {
             _swapAndLiquify(contractTokenBalance);
         }
 
-        // split amount into parts
-        uint256 rate = total / _amount;
-        uint256 substructBalance = persistBalance / rate;
-        uint256 substructReward = rewardBalance / rate;
-
         // transfer with fee logic ...
         bool takeFee = true;
         if (excludedFromFee[_sender] && excludedFromFee[_recipient]) {
             takeFee = false;
         }
         if (!takeFee) _disableFee();
+        _transferWithFee(_sender, _recipient, _amount);
+        if (!takeFee) _enableFee();
+    }
+
+    function _transferWithFee(
+        address _sender,
+        address _recipient,
+        uint256 _amount
+    ) private {
         // calculate fee ...
         (
+            uint256 _burnFee,
             uint256 _supportFee,
             uint256 _taxFee,
             uint256 _liquidityFee
         ) = _calculateFees(_amount);
         uint256 _toTransferAmount = _amount -
+            _burnFee -
             _supportFee -
             _taxFee -
             _liquidityFee;
-        // substract sender balance
-        _balances[_sender] -= substructBalance;
+
         _balances[_recipient] += _toTransferAmount;
-        // if rewardTotal is zero substructReward is also zero
         rewardTotal += _taxFee;
-        rewardTotal -= substructReward;
-        // reflect fees
         _balances[address(this)] += _liquidityFee;
-        _takeSupport(_sender, amountToSupport);
+        _burn(_sender, _burnFee);
+        _takeSupport(_sender, _supportFee);
         emit Transfer(_sender, _recipient, _toTransferAmount);
-        if (!takeFee) _enableFee();
+    }
+
+    function _reflectSender(address _sender, uint256 _amount) private {
+        // substract sender balance
+        (uint256 _rBalance, uint256 _rReward) = _getRValues(_sender, _amount);
+        _balances[_sender] -= _rBalance;
+        rewardTotal -= _rReward;
+    }
+
+    function _getRValues(address _sender, uint256 _amount)
+        private
+        view
+        returns (uint256, uint256)
+    {
+        (uint256 persistBalance, uint256 rewardBalance) = _getBalances(_sender);
+        uint256 total = persistBalance + rewardBalance;
+        // split amount into parts
+        uint256 rate = total / _amount;
+        uint256 substructBalance = persistBalance / rate;
+        uint256 substructReward = rewardBalance / rate;
+        return (substructBalance, substructReward);
     }
 
     function _calculateFees(uint256 _amount)
@@ -449,15 +477,22 @@ contract HungryPanda is Ownable, IERC20 {
         returns (
             uint256,
             uint256,
+            uint256,
             uint256
         )
     {
+        uint256 amountToBurn = (_amount / percentageGranularity) * burnFee;
         uint256 amountToSupport = (_amount / percentageGranularity) *
             supportFee;
         uint256 amountToCharge = (_amount / percentageGranularity) * taxFee;
         uint256 amountToAddLiquidity = (_amount / percentageGranularity) *
             liquidityFee;
-        return (amountToSupport, amountToCharge, amountToAddLiquidity);
+        return (
+            amountToBurn,
+            amountToSupport,
+            amountToCharge,
+            amountToAddLiquidity
+        );
     }
 
     function _maxTxAmount() private view returns (uint256) {
@@ -471,10 +506,12 @@ contract HungryPanda is Ownable, IERC20 {
     }
 
     function _disableFee() private {
+        burnFeeOrigin = burnFee;
         taxFeeOrigin = taxFee;
         liquidityFeeOrigin = liquidityFee;
         supportFeeOrigin = supportFeeOrigin;
         taxFee = 0;
+        burnFee = 0;
         liquidityFee = 0;
         supportFee = 0;
     }
@@ -483,11 +520,26 @@ contract HungryPanda is Ownable, IERC20 {
         taxFee = taxFeeOrigin;
         liquidityFee = liquidityFeeOrigin;
         supportFee = supportFeeOrigin;
+        burnFee = burnFeeOrigin;
     }
 
     function _takeSupport(address _sender, uint256 _toBeTaken) private {
         _balances[supportWallet] += _toBeTaken;
         totalSupported += _toBeTaken;
         emit Transfer(_sender, supportWallet, _toBeTaken);
+    }
+
+    function _burn(address _sender, uint256 _toBeBurned) private {
+        uint256 newSupply = _totalSupply - _toBeBurned;
+        if (newSupply < minimalSupply) {
+            newSupply = minimalSupply;
+        }
+        uint256 reallyBurned = _totalSupply - newSupply;
+        if (reallyBurned <= 0) {
+            return;
+        }
+        _totalSupply = newSupply;
+        totalBurned += reallyBurned;
+        emit Transfer(_sender, address(0), reallyBurned);
     }
 }
