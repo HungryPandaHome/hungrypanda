@@ -1,0 +1,283 @@
+{
+	"compiler": {
+		"version": "0.8.6+commit.11564f7e"
+	},
+	"language": "Solidity",
+	"output": {
+		"abi": [
+			{
+				"inputs": [
+					{
+						"internalType": "address",
+						"name": "_recepient",
+						"type": "address"
+					},
+					{
+						"internalType": "uint256",
+						"name": "_openAfter",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "_periodSize",
+						"type": "uint256"
+					}
+				],
+				"stateMutability": "nonpayable",
+				"type": "constructor"
+			},
+			{
+				"inputs": [],
+				"name": "INIT_DATE",
+				"outputs": [
+					{
+						"internalType": "uint256",
+						"name": "",
+						"type": "uint256"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "OPEN_DATE",
+				"outputs": [
+					{
+						"internalType": "uint256",
+						"name": "",
+						"type": "uint256"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "TIME_PERIOD",
+				"outputs": [
+					{
+						"internalType": "uint256",
+						"name": "",
+						"type": "uint256"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "admin",
+				"outputs": [
+					{
+						"internalType": "address",
+						"name": "",
+						"type": "address"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "amount",
+				"outputs": [
+					{
+						"internalType": "uint256",
+						"name": "",
+						"type": "uint256"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "deliver",
+				"outputs": [
+					{
+						"internalType": "bool",
+						"name": "",
+						"type": "bool"
+					}
+				],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "partAmount",
+				"outputs": [
+					{
+						"internalType": "uint256",
+						"name": "",
+						"type": "uint256"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "parts",
+				"outputs": [
+					{
+						"internalType": "uint256",
+						"name": "",
+						"type": "uint256"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "partsAreTaken",
+				"outputs": [
+					{
+						"internalType": "uint256",
+						"name": "",
+						"type": "uint256"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "recipient",
+				"outputs": [
+					{
+						"internalType": "address",
+						"name": "",
+						"type": "address"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "address",
+						"name": "_token",
+						"type": "address"
+					},
+					{
+						"internalType": "uint256",
+						"name": "_amount",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256",
+						"name": "_parts",
+						"type": "uint256"
+					}
+				],
+				"name": "setToken",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "token",
+				"outputs": [
+					{
+						"internalType": "contract IERC20",
+						"name": "",
+						"type": "address"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "totalWithdrawn",
+				"outputs": [
+					{
+						"internalType": "uint256",
+						"name": "",
+						"type": "uint256"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "withdraw",
+				"outputs": [
+					{
+						"internalType": "bool",
+						"name": "",
+						"type": "bool"
+					}
+				],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			}
+		],
+		"devdoc": {
+			"kind": "dev",
+			"methods": {},
+			"version": 1
+		},
+		"userdoc": {
+			"kind": "user",
+			"methods": {},
+			"version": 1
+		}
+	},
+	"settings": {
+		"compilationTarget": {
+			"contracts/PeriodicEscrow.sol": "PeriodicEscrow"
+		},
+		"evmVersion": "berlin",
+		"libraries": {},
+		"metadata": {
+			"bytecodeHash": "ipfs"
+		},
+		"optimizer": {
+			"enabled": false,
+			"runs": 200
+		},
+		"remappings": []
+	},
+	"sources": {
+		"contracts/PeriodicEscrow.sol": {
+			"keccak256": "0xb725d7423129014afea22fefc7477f9580738b43c38cddc8cc593fb015576788",
+			"license": "MIT",
+			"urls": [
+				"bzz-raw://9bb914644dcede190f341e06e54647cbc128c9fafadc95b6ef0786f471298fb2",
+				"dweb:/ipfs/QmYJdDyFPTwKKG5bTwuFqh69EnQFPitFKLbyhokr42eexE"
+			]
+		},
+		"contracts/interfaces/IERC20.sol": {
+			"keccak256": "0x1a177166bf512d0e0f676546608764caca1cb62fb521c5a64bb93dfd17427f6d",
+			"license": "MIT",
+			"urls": [
+				"bzz-raw://c16e0c70496ab92bc252d3d10a7b5f9cea17149d283cb8fb12e6ec964b8529aa",
+				"dweb:/ipfs/QmNTPfUjZQFm7NiwMAcuRHULqzuY7u1vzdvk7s5uj9pmzH"
+			]
+		},
+		"contracts/library/Address.sol": {
+			"keccak256": "0x2d07d9be6825170acaf423a3295e143120b6f7cbbb8555a2b77a70a167059455",
+			"license": "MIT",
+			"urls": [
+				"bzz-raw://63d442d0fd01fc938bfceb2353bd4507c1090fd7d2936362543fb98583934a8b",
+				"dweb:/ipfs/QmZ9nEB5usVSNbfn3GHfySeqDEGaLkXMfqieENNdcKq7Sd"
+			]
+		},
+		"contracts/library/SafeERC20.sol": {
+			"keccak256": "0xf2943dc65e4f001403c261d8d87f70a4e842644040bb053be4842445258ff024",
+			"license": "MIT",
+			"urls": [
+				"bzz-raw://9ac830ae4e66eb8f24f6a8d9e3636cbdd3cb834e19cde78a1df1862f4579b86f",
+				"dweb:/ipfs/QmXMKy54ubWFSLHfcMMUTfw4PpAhqGRGJ3xxYs9xGV8oqL"
+			]
+		}
+	},
+	"version": 1
+}

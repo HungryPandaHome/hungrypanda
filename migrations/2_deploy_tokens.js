@@ -48,10 +48,8 @@ async function transferAndLockTokens(token, admin, mapping, amount, parts = 1) {
     const recipient = addresses[index];
     const escrow = mapping[recipient];
     // transfer to escrow contract
-    console.log(`excluding ${escrow.address} from fee...`);
-    await token.excludeFromFee(escrow.address, { from: admin });
+    console.log(`transfer ${} to ${escrow.address} from fee...`);
     await token.transfer(escrow.address, partAmount, { from: admin });
-    await token.includeToFee(escrow.address, { from: admin });
     console.log(`including ${escrow.address} into fee...`);
     await escrow.setToken(token.address, partAmount, parts, { from: admin });
   }
@@ -61,7 +59,6 @@ let airdropIndex = 0;
 async function processAirdrop(deployer, token, admin, amount, startsAfter) {
   await deployer.deploy(Airdrop, admin, startsAfter, { from: admin });
   const airdrop = await Airdrop.deployed();
-  await token.excludeFromFee(airdrop.address, { from: admin });
   await token.transfer(airdrop.address, amount, { from: admin });
   // airdrop is excluded from rewards ...
   await airdrop.setToken(token.address, amount, { from: admin });

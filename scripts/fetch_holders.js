@@ -1,9 +1,3 @@
-// const account = process.argv[2];
-// if (!account) {
-//     console.error("account wasn't provided");
-//     process.exit(1);
-// }
-
 const fs = require('fs');
 const HDWalletProvider = require('@truffle/hdwallet-provider');
 const ethers = require('ethers');
