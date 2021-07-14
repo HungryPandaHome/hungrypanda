@@ -93,8 +93,8 @@ contract HungryPanda is Context, IERC20, Ownable {
     bool private _paused = false;
     bool public swapAndLiquifyEnabled = true;
 
-    uint256 public _maxTxAmount = _rTotal / 100; // 1%
-    uint256 private numTokensSellToAddToLiquidity = _rTotal / 10000; // 0.01%
+    uint256 public _maxTxAmount = _tTotal / 100; // 1%
+    uint256 private numTokensSellToAddToLiquidity = _tTotal / 10000; // 0.01%
 
     event MinTokensBeforeSwapUpdated(uint256 minTokensBeforeSwap);
     event SwapAndLiquifyEnabledUpdated(bool enabled);
@@ -127,6 +127,7 @@ contract HungryPanda is Context, IERC20, Ownable {
 
     bool public migrationFinished = false;
     uint256 public lastMigratedIndex = 0;
+    mapping(address => bool) public excludedFromMigration;
     IMigrateToken public oldToken;
 
     constructor(address _router, address _wallet) {
@@ -151,6 +152,11 @@ contract HungryPanda is Context, IERC20, Ownable {
     // Protected migration functions ...
     function initOldToken(address _token) public onlyOwner {
         oldToken = IMigrateToken(_token);
+    }
+
+    function excludeAddressFromMigration(address _who) public onlyOwner {
+        require(!excludedFromMigration[_who], "Migrate: already excluded");
+        excludedFromMigration[_who] = true;
     }
 
     function migrateOldToken(uint256 _offset, uint256 _size) public onlyOwner {
@@ -181,6 +187,9 @@ contract HungryPanda is Context, IERC20, Ownable {
             }
             uint256 balance = oldToken.balanceOf(holder);
             if (balance / DECIMALFACTOR == 0) {
+                continue;
+            }
+            if (excludedFromMigration[holder]) {
                 continue;
             }
             transfer(holder, balance);
@@ -377,6 +386,10 @@ contract HungryPanda is Context, IERC20, Ownable {
 
     function includeInFee(address account) public onlyOwner {
         _isExcludedFromFee[account] = false;
+    }
+
+    function setSupportFeePercent(uint256 supportFee) external onlyOwner {
+        _supportFee = supportFee;
     }
 
     function setTaxFeePercent(uint256 taxFee) external onlyOwner {
